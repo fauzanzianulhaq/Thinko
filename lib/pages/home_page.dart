@@ -1,6 +1,17 @@
 import 'package:flutter/material.dart';
 import 'region_1/level_1_page.dart';
-import 'region_1/level_2_page.dart'; 
+import 'region_1/level_2_page.dart';
+import 'region_1/level_3_page.dart';
+import 'region_1/level_4_page.dart';
+import 'region_1/level_5_page.dart';
+import 'region_2/level_6_page.dart';
+import 'region_2/level_7_page.dart';
+import 'region_2/level_8_page.dart';
+import 'region_2/level_9_page.dart';
+import 'region_2/level_10_page.dart';
+import 'region_2/level_11_page.dart';
+import 'region_2/level_12_page.dart';
+import 'region_2/level_13_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -143,6 +154,72 @@ class _HomePageState extends State<HomePage> {
       Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => const Level2Page()),
+      );
+  } 
+  else if (level == 3) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const Level3Page()),
+      );
+  } 
+  else if (level == 4) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const Level4Page()),
+      );
+  } 
+  else if (level == 5) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const Level5Page()),
+      );
+  } 
+  else if (level == 6) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const Level6Page()),
+      );
+  } 
+  else if (level == 7) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const Level7Page()),
+      );
+  } 
+  else if (level == 8) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const Level8Page()),
+      );
+  } 
+  else if (level == 9) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const Level9Page()),
+      );
+  } 
+  else if (level == 10) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const Level10Page()),
+      );
+  } 
+  else if (level == 11) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const Level11Page()),
+      );
+  } 
+  else if (level == 12) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const Level12Page()),
+      );
+  } 
+  else if (level == 13) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const Level13Page()),
       );
   } 
   // ----------------------------
