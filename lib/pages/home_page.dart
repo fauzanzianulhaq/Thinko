@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'region_1/level_1_page.dart'; 
+import 'region_1/level_1_page.dart';
+import 'region_1/level_2_page.dart'; 
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -129,18 +130,28 @@ class _HomePageState extends State<HomePage> {
   Widget _buildActiveLevelButton(int level) {
     return GestureDetector(
       onTap: () {
-        print("Masuk ke Level $level");
-        if (level == 1) {
-           Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const Level1Page()),
-            );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Level $level belum dibuat!")),
-          );
-        }
-      },
+  print("Masuk ke Level $level");
+  
+  if (level == 1) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const Level1Page()),
+      );
+  } 
+  // --- TAMBAHKAN BAGIAN INI ---
+  else if (level == 2) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const Level2Page()),
+      );
+  } 
+  // ----------------------------
+  else {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("Level $level belum dibuat!")),
+    );
+  }
+},
       child: Column(
         children: [
           // Efek 'Bounce' atau panah kecil di atas tombol biar user tahu harus klik ini
