@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'region_1/level_1_page.dart'; 
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -8,56 +9,79 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  // --- DATA LEVEL USER ---
+  // Ganti angka ini untuk mengetes posisi (misal ganti jadi 2, tombol akan pindah)
+  int currentLevel = 1; 
+
+  // --- DAFTAR KOORDINAT (PENTING!) ---
+  // Kamu harus sesuaikan angka dx (kiri-kanan) dan dy (atas-bawah) 
+  // agar pas dengan gambar petamu.
+  final List<Offset> levelLocations = [
+    const Offset(130, 160), // Posisi Level 1 (dx, dy)
+    const Offset(200, 230), // Posisi Level 2
+    const Offset(90, 310),  // Posisi Level 3
+    const Offset(210, 500), // Posisi Level 4
+    const Offset(110, 620), // Posisi Level 5
+    const Offset(160, 750), // Posisi Level 6
+  ];
+
   @override
   Widget build(BuildContext context) {
+    // Ambil koordinat sesuai level user saat ini
+    // Kita pakai (currentLevel - 1) karena List dimulai dari index 0
+    // Pastikan tidak error jika level melebihi jumlah lokasi yang ada
+    int safeIndex = (currentLevel - 1).clamp(0, levelLocations.length - 1);
+    Offset currentPos = levelLocations[safeIndex];
+
     return Scaffold(
-      // Kita pakai Stack karena ada elemen yang menumpuk (Peta di bawah, Profil di atas)
+      floatingActionButton: FloatingActionButton(
+        mini: true,
+        backgroundColor: Colors.red,
+        child: const Icon(Icons.add, color: Colors.white),
+        onPressed: () {
+          // FITUR TEST: Klik tombol merah kecil untuk menaikkan level
+          setState(() {
+            if (currentLevel < levelLocations.length) {
+              currentLevel++;
+            } else {
+              currentLevel = 1; // Reset ke 1
+            }
+          });
+        },
+      ),
       body: Stack(
         children: [
           // --- LAPISAN 1: PETA SCROLLABLE ---
           SingleChildScrollView(
-            // physics: ClampingScrollPhysics() agar scrollnya tidak memantul berlebihan
-            child: Stack(
-              children: [
-                // 1. Gambar Background Peta Panjang
-                Image.asset(
-                  'assets/images/map_background.png', // Pastikan nama file sesuai
-                  width: double.infinity,
-                  fit: BoxFit.fitWidth, // Agar lebar gambar menyesuaikan lebar HP
-                ),
+            child: SizedBox(
+              // Pastikan container punya tinggi yang cukup agar peta bisa di-scroll
+              height: 1500, // Sesuaikan dengan panjang gambar petamu
+              child: Stack(
+                children: [
+                  // 1. Gambar Background Peta
+                  Image.asset(
+                    'assets/images/map_background.png', 
+                    width: double.infinity,
+                    fit: BoxFit.fitWidth,
+                    alignment: Alignment.topCenter,
+                  ),
 
-                // 2. Tombol-tombol Level (CONTOH)
-                // Nanti kamu harus atur posisi top & left ini manual sesuai gambar petanya
-                
-                // Contoh Level 1 (Paling bawah)
-                Positioned(
-                  bottom: 100, // Jarak dari bawah gambar
-                  left: 180,   // Jarak dari kiri
-                  child: _buildLevelButton(1, true), // Level 1 (Aktif)
-                ),
-
-                // Contoh Level 2 (Agak ke atas)
-                Positioned(
-                  bottom: 250,
-                  left: 100,
-                  child: _buildLevelButton(2, false), // Level 2 (Terkunci)
-                ),
-                
-                // Contoh Level 3
-                 Positioned(
-                  bottom: 380,
-                  left: 250,
-                  child: _buildLevelButton(3, false), 
-                ),
-                
-                // TIPS: Kamu harus tambah Positioned lainnya sampai level 30
-                // dengan mengira-ngira koordinat bottom & left-nya.
-              ],
+                  // 2. Button Player (Dinamis)
+                  // Button ini akan berpindah sesuai variabel currentPos
+                  Positioned(
+                    left: currentPos.dx,
+                    top: currentPos.dy,
+                    child: _buildActiveLevelButton(currentLevel),
+                  ),
+                  
+                  // Opsional: Menampilkan Level yang sudah lewat sebagai titik kecil/ceklis
+                  // (Bisa ditambahkan nanti)
+                ],
+              ),
             ),
           ),
 
           // --- LAPISAN 2: HEADER PROFIL (HUD) ---
-          // Ini posisinya tetap (fixed) di atas layar walau peta di-scroll
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.all(16.0),
@@ -75,34 +99,20 @@ class _HomePageState extends State<HomePage> {
                   ],
                 ),
                 child: Row(
-                  mainAxisSize: MainAxisSize.min, // Agar kotak tidak lebar full
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Avatar Kecil
                     const CircleAvatar(
                       radius: 20,
-                      backgroundImage: AssetImage('assets/images/avatar_1.png'), // Avatar user
+                      backgroundImage: AssetImage('assets/images/mc.png'),
                       backgroundColor: Colors.grey,
                     ),
                     const SizedBox(width: 10),
-                    // Nama & Level
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
-                      children: const [
-                        Text(
-                          "Lumi", // Nama user
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
-                        Text(
-                          "Level 1",
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.green,
-                          ),
-                        ),
+                      children: [
+                        const Text("Lumi", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                        Text("Level $currentLevel", style: TextStyle(fontSize: 12, color: Colors.green)),
                       ],
                     ),
                   ],
@@ -115,44 +125,62 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // Widget untuk membuat tombol bulat level
-  Widget _buildLevelButton(int level, bool isActive) {
+  // Widget Tombol Aktif (Besar & Animasi)
+  Widget _buildActiveLevelButton(int level) {
     return GestureDetector(
       onTap: () {
-        if (isActive) {
-          print("Masuk ke Level $level");
-          // Navigasi ke halaman soal kuis nanti disini
+        print("Masuk ke Level $level");
+        if (level == 1) {
+           Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const Level1Page()),
+            );
         } else {
-          print("Level $level masih terkunci");
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Level $level belum dibuat!")),
+          );
         }
       },
-      child: Container(
-        width: 50,
-        height: 50,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: isActive ? const Color(0xFF1CC600) : Colors.grey, // Hijau jika aktif, Abu jika kunci
-          border: Border.all(color: Colors.white, width: 3),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.3),
-              blurRadius: 5,
-              offset: const Offset(0, 3),
-            )
-          ],
-        ),
-        child: Center(
-          child: isActive 
-            ? Text(
+      child: Column(
+        children: [
+          // Efek 'Bounce' atau panah kecil di atas tombol biar user tahu harus klik ini
+          const Icon(Icons.keyboard_arrow_down, color: Colors.white, size: 30, shadows: [
+            Shadow(blurRadius: 5, color: Colors.black, offset: Offset(0, 2))
+          ],),
+          
+          Container(
+            width: 70, 
+            height: 70, 
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: const Color(0xFF1CC600), // Hijau Terang
+              border: Border.all(color: Colors.white, width: 4),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.4),
+                  blurRadius: 10,
+                  offset: const Offset(0, 5),
+                ),
+                // Efek Glow
+                BoxShadow(
+                  color: Colors.green.withOpacity(0.5),
+                  blurRadius: 20,
+                  spreadRadius: 5,
+                )
+              ],
+            ),
+            child: Center(
+              child: Text(
                 "$level",
                 style: const TextStyle(
                   color: Colors.white, 
-                  fontWeight: FontWeight.bold,
-                  fontSize: 20
+                  fontWeight: FontWeight.bold, 
+                  fontSize: 28
                 ),
-              )
-            : const Icon(Icons.lock, color: Colors.white70, size: 20), // Ikon gembok jika terkunci
-        ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
