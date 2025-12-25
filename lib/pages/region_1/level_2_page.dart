@@ -1,19 +1,17 @@
 import 'package:flutter/material.dart';
-// Import Level 2 agar tombol "Stage Berikutnya" berfungsi
-import 'level_2_page.dart'; 
 
-class Level1Page extends StatefulWidget {
-  const Level1Page({super.key});
+class Level2Page extends StatefulWidget {
+  const Level2Page({super.key});
 
   @override
-  State<Level1Page> createState() => _Level1PageState();
+  State<Level2Page> createState() => _Level2PageState();
 }
 
-class _Level1PageState extends State<Level1Page> {
-  // --- DATA SOAL ---
-  final String question = "5 + 6";
-  final int correctAnswer = 11;
-  final List<int> options = [9, 6, 11, 10]; 
+class _Level2PageState extends State<Level2Page> {
+  // --- DATA SOAL LEVEL 2 ---
+  final String question = "10 + 5 - 2"; 
+  final int correctAnswer = 13;          
+  final List<int> options = [17, 14, 11, 13]; 
 
   // --- STATUS GAME ---
   int userHealth = 100;
@@ -28,13 +26,12 @@ class _Level1PageState extends State<Level1Page> {
       });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("Serangan Berhasil!"), 
+          content: Text("Hiaat! Serangan Jamur kena!"), 
           backgroundColor: Colors.green,
           duration: Duration(milliseconds: 500),
         ),
       );
 
-      // Cek Menang
       if (bossHealth <= 0.05) { 
         _showWinDialog();
       }
@@ -46,7 +43,7 @@ class _Level1PageState extends State<Level1Page> {
       });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("Aduh! Jawaban salah!"), 
+          content: Text("Aduh! Hitung yang teliti!"), 
           backgroundColor: Colors.red,
           duration: Duration(milliseconds: 500),
         ),
@@ -54,24 +51,24 @@ class _Level1PageState extends State<Level1Page> {
     }
   }
 
-  // --- POPUP KEMENANGAN (DESAIN BARU) ---
+  // --- POPUP KEMENANGAN (DESAIN BARU - SAMA DENGAN LEVEL 1) ---
   void _showWinDialog() {
     showDialog(
       context: context,
-      barrierDismissible: false, // User tidak bisa klik luar untuk tutup
+      barrierDismissible: false, 
       builder: (context) {
         return Dialog(
-          backgroundColor: Colors.transparent, // Transparan agar kepala robot terlihat nongol
+          backgroundColor: Colors.transparent, 
           insetPadding: const EdgeInsets.all(20),
           child: Stack(
-            clipBehavior: Clip.none, // Izinkan elemen keluar dari batas stack (untuk kepala)
+            clipBehavior: Clip.none, 
             alignment: Alignment.center,
             children: [
               // 1. KOTAK KONTEN PUTIH
               Container(
                 width: double.infinity,
-                margin: const EdgeInsets.only(top: 40), // Beri jarak atas untuk kepala
-                padding: const EdgeInsets.fromLTRB(20, 50, 20, 20), // Padding atas besar biar ga ketutup kepala
+                margin: const EdgeInsets.only(top: 40), 
+                padding: const EdgeInsets.fromLTRB(20, 50, 20, 20), 
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(20),
@@ -84,7 +81,7 @@ class _Level1PageState extends State<Level1Page> {
                   ],
                 ),
                 child: Column(
-                  mainAxisSize: MainAxisSize.min, // Tinggi menyesuaikan isi
+                  mainAxisSize: MainAxisSize.min, 
                   children: [
                     // JUDUL
                     const Text(
@@ -102,7 +99,7 @@ class _Level1PageState extends State<Level1Page> {
                     
                     // SUBTITLE
                     const Text(
-                      "Wow! Kamu menyelesaikannya dengan baik!",
+                      "Hebat! Kamu mengalahkan Monster Jamur!",
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 14,
@@ -111,7 +108,7 @@ class _Level1PageState extends State<Level1Page> {
                     ),
                     const SizedBox(height: 20),
 
-                    // BINTANG & SKOR (Sesuai gambar)
+                    // BINTANG & SKOR
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       decoration: BoxDecoration(
@@ -121,7 +118,7 @@ class _Level1PageState extends State<Level1Page> {
                       child: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.stars_rounded, color: Colors.amber, size: 36), // Ikon Bintang
+                          Icon(Icons.stars_rounded, color: Colors.amber, size: 36), 
                           SizedBox(width: 8),
                           Text(
                             "5",
@@ -137,7 +134,7 @@ class _Level1PageState extends State<Level1Page> {
 
                     const SizedBox(height: 30),
 
-                    // TOMBOL NAVIGASI (Peta & Next)
+                    // TOMBOL NAVIGASI
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
@@ -152,7 +149,7 @@ class _Level1PageState extends State<Level1Page> {
                               Container(
                                 padding: const EdgeInsets.all(10),
                                 decoration: BoxDecoration(
-                                  color: Colors.green[50], // Hijau pudar background
+                                  color: Colors.green[50], 
                                   shape: BoxShape.circle,
                                 ),
                                 child: Icon(Icons.list_alt_rounded, color: Colors.green[700], size: 30),
@@ -166,12 +163,15 @@ class _Level1PageState extends State<Level1Page> {
                         // TOMBOL STAGE BERIKUTNYA
                         InkWell(
                           onTap: () {
-                            Navigator.pop(context); // Tutup Dialog
-                            // Navigasi ke Level 2 (Replace biar ga numpuk)
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(builder: (context) => const Level2Page()),
+                            // Karena Level 3 belum ada, kita kasih pesan dulu dan balik ke peta
+                            Navigator.pop(context); // Tutup dialog
+                            Navigator.pop(context); // Balik ke peta
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text("Level 3 Segera Hadir!")),
                             );
+                            
+                            // Nanti kalau Level 3 sudah ada, ganti kode di atas dengan:
+                            // Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const Level3Page()));
                           },
                           child: Column(
                             children: [
@@ -194,19 +194,19 @@ class _Level1PageState extends State<Level1Page> {
                 ),
               ),
 
-              // 2. KEPALA ROBOT (Floating di atas kotak)
+              // 2. KEPALA ROBOT
               Positioned(
-                top: 0, // Nempel di paling atas Stack
+                top: 0, 
                 child: Container(
                   padding: const EdgeInsets.all(4),
                   decoration: const BoxDecoration(
-                    color: Colors.white, // Border putih
+                    color: Colors.white, 
                     shape: BoxShape.circle,
                   ),
                   child: CircleAvatar(
-                    radius: 35, // Ukuran kepala
+                    radius: 35, 
                     backgroundColor: Colors.white,
-                    backgroundImage: AssetImage('assets/images/logo_thinko.png'), // Pastikan ini logo robotmu
+                    backgroundImage: AssetImage('assets/images/logo_thinko.png'), 
                   ),
                 ),
               ),
@@ -232,11 +232,11 @@ class _Level1PageState extends State<Level1Page> {
             ),
           ),
 
-          // 2. UI UTAMA
+          // 2. UI GAME
           SafeArea(
             child: Column(
               children: [
-                // HEADER
+                // HEADER HP
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   child: Row(
@@ -259,10 +259,8 @@ class _Level1PageState extends State<Level1Page> {
                           style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
                         ),
                       ),
-                      
                       const Spacer(),
-
-                      // Boss HP
+                      // Boss HP Bar
                       Expanded(
                         flex: 4,
                         child: Stack(
@@ -286,12 +284,13 @@ class _Level1PageState extends State<Level1Page> {
                                 ),
                               ),
                             ),
+                            // Icon Boss Kecil (Jamur)
                             const Positioned(
                               right: 0,
                               child: CircleAvatar(
                                 radius: 16,
                                 backgroundColor: Colors.white,
-                                backgroundImage: AssetImage('assets/images/lvl1.png'),
+                                backgroundImage: AssetImage('assets/images/monster_level_2.png'),
                               ),
                             ),
                           ],
@@ -303,13 +302,14 @@ class _Level1PageState extends State<Level1Page> {
 
                 const Spacer(),
 
-                // ARENA KARAKTER
+                // ARENA (Hero vs Jamur)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     crossAxisAlignment: CrossAxisAlignment.end, 
                     children: [
+                      // HERO
                       Flexible(
                         child: Image.asset(
                           'assets/images/mc.png',
@@ -317,11 +317,14 @@ class _Level1PageState extends State<Level1Page> {
                           fit: BoxFit.contain,
                         ),
                       ),
+                      
                       const SizedBox(width: 10),
+
+                      // MUSUH (Jamur)
                       Flexible(
                         child: Image.asset(
-                          'assets/images/lvl1.png',
-                          height: 180,
+                          'assets/images/monster_level_2.png', 
+                          height: 160, 
                           fit: BoxFit.contain,
                         ),
                       ),
@@ -340,12 +343,21 @@ class _Level1PageState extends State<Level1Page> {
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
-                      BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, 5))],
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.2),
+                        blurRadius: 10,
+                        offset: const Offset(0, 5),
+                      ),
+                    ],
                   ),
                   child: Text(
-                    question,
+                    question, 
                     textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.black87),
+                    style: const TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
                   ),
                 ),
 
@@ -365,12 +377,22 @@ class _Level1PageState extends State<Level1Page> {
                           decoration: BoxDecoration(
                             color: const Color(0xFFF0F0F0),
                             borderRadius: BorderRadius.circular(12),
-                            boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 4))],
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 4,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
                           ),
                           child: Center(
                             child: Text(
                               "$option",
-                              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87),
+                              style: const TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
                             ),
                           ),
                         ),
@@ -378,7 +400,6 @@ class _Level1PageState extends State<Level1Page> {
                     }).toList(),
                   ),
                 ),
-                
                 const SizedBox(height: 20),
               ],
             ),
