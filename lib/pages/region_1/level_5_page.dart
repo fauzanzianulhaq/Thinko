@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart'; // 1. WAJIB IMPORT INI
+import 'level_6_page.dart'; // Pastikan file ini sudah ada, atau comment dulu kalau belum
 
 class Level5Page extends StatefulWidget {
   const Level5Page({super.key});
@@ -16,9 +18,12 @@ class _Level5PageState extends State<Level5Page> {
   // --- STATUS GAME ---
   int userHealth = 100;
   double bossHealth = 1.0;
+  bool isGameFinished = false; // 2. TAMBAH VARIABLE INI (Biar gak error double klik)
 
   // Logika Cek Jawaban
   void checkAnswer(int selectedAnswer) {
+    if (isGameFinished) return; // Kalau game selesai, tombol macet (biar aman)
+
     if (selectedAnswer == correctAnswer) {
       // JAWABAN BENAR
       setState(() {
@@ -26,15 +31,26 @@ class _Level5PageState extends State<Level5Page> {
       });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("Serangan Telak! Golem Es retak!"), // Teks disesuaikan tema es
+          content: Text("Serangan Telak! Golem Es retak!"), 
           backgroundColor: Colors.green,
           duration: Duration(milliseconds: 500),
         ),
       );
 
+      // Cek Menang
       if (bossHealth <= 0.05) {
-        _showWinDialog();
+        setState(() {
+          isGameFinished = true; // Tandai game selesai
+          bossHealth = 0;
+        });
+
+        // 3. SOLUSI ERROR "NAVIGATOR LOCKED"
+        // Gunakan SchedulerBinding agar dialog muncul SETELAH layar selesai digambar
+        SchedulerBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _showWinDialog();
+        });
       }
+
     } else {
       // JAWABAN SALAH
       setState(() {
@@ -42,7 +58,7 @@ class _Level5PageState extends State<Level5Page> {
       });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("Brrr! Dingin! Jawabanmu salah!"), // Teks disesuaikan tema es
+          content: Text("Brrr! Dingin! Jawabanmu salah!"), 
           backgroundColor: Colors.red,
           duration: Duration(milliseconds: 500),
         ),
@@ -121,10 +137,11 @@ class _Level5PageState extends State<Level5Page> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
+                        // Tombol Peta
                         InkWell(
                           onTap: () {
-                            Navigator.pop(context);
-                            Navigator.pop(context);
+                            Navigator.pop(context); // Tutup Dialog
+                            Navigator.pop(context); // Balik ke Peta
                           },
                           child: Column(
                             children: [
@@ -138,12 +155,15 @@ class _Level5PageState extends State<Level5Page> {
                             ],
                           ),
                         ),
+                        // Tombol Stage Berikutnya (Ke Level 6)
                         InkWell(
                           onTap: () {
-                             Navigator.pop(context);
-                             Navigator.pop(context);
-                             ScaffoldMessenger.of(context).showSnackBar(
-                               const SnackBar(content: Text("Level 5 Segera Hadir!")),
+                             Navigator.pop(context); // Tutup dialog
+                             // Ganti halaman ke Level 6
+                             // Pastikan file level_6_page.dart sudah dibuat ya!
+                             Navigator.pushReplacement(
+                               context, 
+                               MaterialPageRoute(builder: (context) => const Level6Page())
                              );
                           },
                           child: Column(
@@ -189,11 +209,11 @@ class _Level5PageState extends State<Level5Page> {
     return Scaffold(
       body: Stack(
         children: [
-          // 1. BACKGROUND BARU (ASET ES)
+          // 1. BACKGROUND (Pastikan nama file background benar)
           Container(
             decoration: const BoxDecoration(
               image: DecorationImage(
-                image: AssetImage('assets/images/hutan.png'), // <-- PASTIKAN NAMA FILE INI BENAR
+                image: AssetImage('assets/images/hutan.png'), 
                 fit: BoxFit.cover,
               ),
             ),
@@ -251,13 +271,13 @@ class _Level5PageState extends State<Level5Page> {
                                 ),
                               ),
                             ),
-                            // Icon Boss Kecil (Golem Es)
+                            // Icon Boss Kecil
                             const Positioned(
                               right: 0,
                               child: CircleAvatar(
                                 radius: 16,
                                 backgroundColor: Colors.white,
-                                backgroundImage: AssetImage('assets/images/monster_level_5.png'), // Pakai gambar monster es baru
+                                backgroundImage: AssetImage('assets/images/monster_level_5.png'), // Sesuaikan nama file monster
                               ),
                             ),
                           ],
@@ -269,7 +289,7 @@ class _Level5PageState extends State<Level5Page> {
 
                 const Spacer(),
 
-                // ARENA (Hero vs Golem Es)
+                // ARENA
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Row(
@@ -285,10 +305,10 @@ class _Level5PageState extends State<Level5Page> {
                         ),
                       ),
                       const SizedBox(width: 10),
-                      // MUSUH BARU (Golem Es)
+                      // MUSUH (Golem Es / Level 5)
                       Flexible(
                         child: Image.asset(
-                          'assets/images/monster_level_5.png', // <-- Pastikan ini gambar Golem Es
+                          'assets/images/monster_level_5.png', // Sesuaikan nama file monster
                           height: 170, 
                           fit: BoxFit.contain,
                         ),

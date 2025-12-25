@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'level_3_page.dart';
 
 class Level2Page extends StatefulWidget {
   const Level2Page({super.key});
@@ -166,9 +167,7 @@ class _Level2PageState extends State<Level2Page> {
                             // Karena Level 3 belum ada, kita kasih pesan dulu dan balik ke peta
                             Navigator.pop(context); // Tutup dialog
                             Navigator.pop(context); // Balik ke peta
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text("Level 3 Segera Hadir!")),
-                            );
+                            Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const Level3Page()));
                             
                             // Nanti kalau Level 3 sudah ada, ganti kode di atas dengan:
                             // Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const Level3Page()));

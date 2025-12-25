@@ -4,7 +4,7 @@ import 'region_1/level_2_page.dart';
 import 'region_1/level_3_page.dart';
 import 'region_1/level_4_page.dart';
 import 'region_1/level_5_page.dart';
-import 'region_2/level_6_page.dart';
+import 'region_1/level_6_page.dart';
 import 'region_2/level_7_page.dart';
 import 'region_2/level_8_page.dart';
 import 'region_2/level_9_page.dart';

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../region_2/level_7_page.dart';
 
 class Level6Page extends StatefulWidget {
   const Level6Page({super.key});
@@ -142,9 +143,10 @@ class _Level6PageState extends State<Level6Page> {
                           onTap: () {
                              Navigator.pop(context);
                              Navigator.pop(context);
-                             ScaffoldMessenger.of(context).showSnackBar(
-                               const SnackBar(content: Text("Level 4 Segera Hadir!")),
-                             );
+                             Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const Level7Page()));
+                            //  ScaffoldMessenger.of(context).showSnackBar(
+                            //    const SnackBar(content: Text("Level 4 Segera Hadir!")),
+                            //  );
                           },
                           child: Column(
                             children: [

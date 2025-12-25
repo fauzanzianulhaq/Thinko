@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart'; // Wajib ada untuk fix error navigasi
+import 'level_4_page.dart'; // Import Level 4 kamu
 
 class Level3Page extends StatefulWidget {
   const Level3Page({super.key});
@@ -8,17 +10,20 @@ class Level3Page extends StatefulWidget {
 }
 
 class _Level3PageState extends State<Level3Page> {
-  // --- DATA SOAL LEVEL 3 ---
-  final String question = "30 + 25 - 10";
-  final int correctAnswer = 45;
-  final List<int> options = [40, 30, 45, 35];
+  // --- DATA SOAL (30 - 15 + 2 = 17) ---
+  final String question = "30 - 15 + 2";
+  final int correctAnswer = 17;
+  final List<int> options = [17, 15, 16, 18];
 
   // --- STATUS GAME ---
   int userHealth = 100;
-  double bossHealth = 1.0;
+  double bossHealth = 1.0; 
+  bool isGameFinished = false; // Mencegah dialog muncul berkali-kali
 
   // Logika Cek Jawaban
   void checkAnswer(int selectedAnswer) {
+    if (isGameFinished) return; // Stop jika game sudah selesai
+
     if (selectedAnswer == correctAnswer) {
       // JAWABAN BENAR
       setState(() {
@@ -26,15 +31,26 @@ class _Level3PageState extends State<Level3Page> {
       });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("Serangan Telak! Golem Es retak!"), // Teks disesuaikan tema es
+          content: Text("Serangan Telak! Kumbang Kayu pusing!"),
           backgroundColor: Colors.green,
           duration: Duration(milliseconds: 500),
         ),
       );
 
+      // Cek Menang
       if (bossHealth <= 0.05) {
-        _showWinDialog();
+        setState(() {
+          isGameFinished = true;
+          bossHealth = 0;
+        });
+
+        // --- SOLUSI ERROR NAVIGATOR ---
+        // Jadwalkan dialog muncul SETELAH layar selesai digambar
+        SchedulerBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _showWinDialog();
+        });
       }
+
     } else {
       // JAWABAN SALAH
       setState(() {
@@ -42,7 +58,7 @@ class _Level3PageState extends State<Level3Page> {
       });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("Brrr! Dingin! Jawabanmu salah!"), // Teks disesuaikan tema es
+          content: Text("Aduh! Hitunganmu meleset!"),
           backgroundColor: Colors.red,
           duration: Duration(milliseconds: 500),
         ),
@@ -63,7 +79,7 @@ class _Level3PageState extends State<Level3Page> {
             clipBehavior: Clip.none,
             alignment: Alignment.center,
             children: [
-              // KOTAK KONTEN
+              // 1. KOTAK KONTEN
               Container(
                 width: double.infinity,
                 margin: const EdgeInsets.only(top: 40),
@@ -90,9 +106,8 @@ class _Level3PageState extends State<Level3Page> {
                     const Divider(color: Colors.grey, thickness: 0.5),
                     const SizedBox(height: 10),
                     
-                    // Subtitle
                     const Text(
-                      "Luar biasa! Golem Es berhasil dicairkan!",
+                      "Luar biasa! Hutan kembali aman!",
                       textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 14, color: Colors.black54),
                     ),
@@ -121,10 +136,11 @@ class _Level3PageState extends State<Level3Page> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
+                        // Tombol Peta
                         InkWell(
                           onTap: () {
-                            Navigator.pop(context);
-                            Navigator.pop(context);
+                            Navigator.pop(context); // Tutup Dialog
+                            Navigator.pop(context); // Balik ke Peta
                           },
                           child: Column(
                             children: [
@@ -138,12 +154,14 @@ class _Level3PageState extends State<Level3Page> {
                             ],
                           ),
                         ),
+                        // Tombol Stage Berikutnya (MENUJU LEVEL 4)
                         InkWell(
                           onTap: () {
-                             Navigator.pop(context);
-                             Navigator.pop(context);
-                             ScaffoldMessenger.of(context).showSnackBar(
-                               const SnackBar(content: Text("Level 4 Segera Hadir!")),
+                             Navigator.pop(context); // Tutup dialog
+                             // Ganti halaman ke Level 4
+                             Navigator.pushReplacement(
+                               context, 
+                               MaterialPageRoute(builder: (context) => const Level4Page())
                              );
                           },
                           child: Column(
@@ -164,7 +182,7 @@ class _Level3PageState extends State<Level3Page> {
                 ),
               ),
 
-              // KEPALA ROBOT
+              // 2. KEPALA ROBOT
               Positioned(
                 top: 0,
                 child: Container(
@@ -189,17 +207,16 @@ class _Level3PageState extends State<Level3Page> {
     return Scaffold(
       body: Stack(
         children: [
-          // 1. BACKGROUND BARU (ASET ES)
+          // BACKGROUND
           Container(
             decoration: const BoxDecoration(
               image: DecorationImage(
-                image: AssetImage('assets/images/hutan.png'), // <-- PASTIKAN NAMA FILE INI BENAR
+                image: AssetImage('assets/images/hutan.png'), 
                 fit: BoxFit.cover,
               ),
             ),
           ),
-
-          // 2. UI GAME
+          // UI GAME
           SafeArea(
             child: Column(
               children: [
@@ -227,7 +244,6 @@ class _Level3PageState extends State<Level3Page> {
                         ),
                       ),
                       const Spacer(),
-                      // Boss HP Bar
                       Expanded(
                         flex: 4,
                         child: Stack(
@@ -251,13 +267,12 @@ class _Level3PageState extends State<Level3Page> {
                                 ),
                               ),
                             ),
-                            // Icon Boss Kecil (Golem Es)
                             const Positioned(
                               right: 0,
                               child: CircleAvatar(
                                 radius: 16,
                                 backgroundColor: Colors.white,
-                                backgroundImage: AssetImage('assets/images/monster_level_3.png'), // Pakai gambar monster es baru
+                                backgroundImage: AssetImage('assets/images/lvl3.png'), 
                               ),
                             ),
                           ],
@@ -266,17 +281,14 @@ class _Level3PageState extends State<Level3Page> {
                     ],
                   ),
                 ),
-
                 const Spacer(),
-
-                // ARENA (Hero vs Golem Es)
+                // ARENA
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      // HERO
                       Flexible(
                         child: Image.asset(
                           'assets/images/mc.png',
@@ -285,20 +297,17 @@ class _Level3PageState extends State<Level3Page> {
                         ),
                       ),
                       const SizedBox(width: 10),
-                      // MUSUH BARU (Golem Es)
                       Flexible(
                         child: Image.asset(
-                          'assets/images/monster_level_3.png', // <-- Pastikan ini gambar Golem Es
-                          height: 170, 
+                          'assets/images/lvl3.png', 
+                          height: 160, 
                           fit: BoxFit.contain,
                         ),
                       ),
                     ],
                   ),
                 ),
-
                 const SizedBox(height: 20),
-
                 // SOAL
                 Container(
                   margin: const EdgeInsets.symmetric(horizontal: 24),
@@ -317,10 +326,8 @@ class _Level3PageState extends State<Level3Page> {
                     style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.black87),
                   ),
                 ),
-
                 const SizedBox(height: 20),
-
-                // OPSI JAWABAN
+                // OPSI
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
                   child: Row(
