@@ -2,23 +2,28 @@ import 'package:flutter/material.dart';
 import 'pin_confirmation_page.dart';
 
 class PinCreationPage extends StatefulWidget {
-  const PinCreationPage({super.key});
+  final String username;
+  final int avatarIndex;
+
+  const PinCreationPage({
+    super.key, 
+    required this.username, 
+    required this.avatarIndex
+  });
 
   @override
   State<PinCreationPage> createState() => _PinCreationPageState();
 }
 
 class _PinCreationPageState extends State<PinCreationPage> {
-  // Kita butuh 4 controller untuk masing-masing kotak
+  // Controller untuk 4 kotak PIN
   final List<TextEditingController> _controllers = List.generate(4, (index) => TextEditingController());
   final List<FocusNode> _focusNodes = List.generate(4, (index) => FocusNode());
-
-  // Status apakah PIN terlihat atau tersembunyi
-  bool _isPinVisible = true; // Sesuai gambar, awalnya terlihat (angka 1 dan 3 kelihatan)
+  
+  bool _isPinVisible = true; // Default terlihat agar mudah diingat
 
   @override
   void dispose() {
-    // Bersihkan memori saat halaman ditutup
     for (var controller in _controllers) controller.dispose();
     for (var node in _focusNodes) node.dispose();
     super.dispose();
@@ -34,10 +39,7 @@ class _PinCreationPageState extends State<PinCreationPage> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFD0F8CE), // Hijau muda
-              Colors.white,
-            ],
+            colors: [Color(0xFFD0F8CE), Colors.white],
           ),
         ),
         child: SafeArea(
@@ -69,41 +71,29 @@ class _PinCreationPageState extends State<PinCreationPage> {
 
               const SizedBox(height: 20),
 
-              // 2. Progress Bar (2 Hijau, 1 Abu)
+              // 2. Progress Bar (Step 2 Hijau)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24.0),
                 child: Row(
                   children: [
-                    // Step 1: Hijau
                     Expanded(
                       child: Container(
                         height: 6,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF1CC600),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
+                        decoration: BoxDecoration(color: const Color(0xFF1CC600), borderRadius: BorderRadius.circular(10)),
                       ),
                     ),
                     const SizedBox(width: 8),
-                    // Step 2: Hijau (Halaman ini)
                     Expanded(
                       child: Container(
                         height: 6,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF1CC600),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
+                        decoration: BoxDecoration(color: const Color(0xFF1CC600), borderRadius: BorderRadius.circular(10)),
                       ),
                     ),
                     const SizedBox(width: 8),
-                    // Step 3: Abu-abu
                     Expanded(
                       child: Container(
                         height: 6,
-                        decoration: BoxDecoration(
-                          color: Colors.grey[350],
-                          borderRadius: BorderRadius.circular(10),
-                        ),
+                        decoration: BoxDecoration(color: Colors.grey[350], borderRadius: BorderRadius.circular(10)),
                       ),
                     ),
                   ],
@@ -128,11 +118,7 @@ class _PinCreationPageState extends State<PinCreationPage> {
                       const Text(
                         'Hampir selesai\nSekarang buat PIN rahasia\nbiar akunmu aman.',
                         textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black,
-                        ),
+                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black),
                       ),
 
                       const SizedBox(height: 40),
@@ -145,7 +131,7 @@ class _PinCreationPageState extends State<PinCreationPage> {
                             width: 70,
                             height: 80,
                             decoration: BoxDecoration(
-                              color: Colors.grey[300], // Warna abu kotak
+                              color: Colors.grey[300],
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: TextField(
@@ -153,20 +139,16 @@ class _PinCreationPageState extends State<PinCreationPage> {
                               focusNode: _focusNodes[index],
                               textAlign: TextAlign.center,
                               keyboardType: TextInputType.number,
-                              obscureText: !_isPinVisible, // Logic sembunyi/lihat
-                              obscuringCharacter: '●', // Karakter pengganti jika hidden
+                              obscureText: !_isPinVisible,
+                              obscuringCharacter: '●',
                               style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
-                              decoration: const InputDecoration(
-                                border: InputBorder.none,
-                                counterText: "", 
-                              ),
+                              decoration: const InputDecoration(border: InputBorder.none, counterText: ""),
                               maxLength: 1,
                               onChanged: (value) {
-                                // Logic Auto-Focus: Pindah ke kotak sebelah kalau sudah diisi
+                                // Pindah otomatis ke kotak sebelah
                                 if (value.isNotEmpty && index < 3) {
                                   _focusNodes[index + 1].requestFocus();
                                 }
-                                // Kalau dihapus (kosong), pindah mundur ke kotak sebelumnya
                                 if (value.isEmpty && index > 0) {
                                   _focusNodes[index - 1].requestFocus();
                                 }
@@ -178,11 +160,11 @@ class _PinCreationPageState extends State<PinCreationPage> {
 
                       const SizedBox(height: 20),
 
-                      // 4. Ikon Mata (Toggle Visibility)
+                      // Toggle Visibility (Mata)
                       GestureDetector(
                         onTap: () {
                           setState(() {
-                            _isPinVisible = !_isPinVisible; // Ubah status true/false
+                            _isPinVisible = !_isPinVisible;
                           });
                         },
                         child: Icon(
@@ -196,7 +178,7 @@ class _PinCreationPageState extends State<PinCreationPage> {
                 ),
               ),
 
-              // 5. Tombol Lanjut
+              // 4. Tombol Lanjut
               Padding(
                 padding: const EdgeInsets.all(24.0),
                 child: SizedBox(
@@ -204,36 +186,35 @@ class _PinCreationPageState extends State<PinCreationPage> {
                   height: 55,
                   child: ElevatedButton(
                     onPressed: () {
-                  String pin = _controllers.map((c) => c.text).join();
-  
-                if (pin.length == 4) {
-                  // Kirim PIN ke halaman Konfirmasi
-                Navigator.push(
-                  context,
-                MaterialPageRoute(
-                       builder: (context) => PinConfirmationPage(sourcePin: pin),
-                ),
-                );
-              } else {
-              ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('PIN harus 4 digit ya!')),
-              );
-          }
-          },
+                      String pin = _controllers.map((c) => c.text).join();
+
+                      if (pin.length == 4) {
+                        // PINDAH HALAMAN BAWA DATA: Username + Avatar + PIN
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => PinConfirmationPage(
+                              username: widget.username,
+                              avatarIndex: widget.avatarIndex,
+                              sourcePin: pin,
+                            ),
+                          ),
+                        );
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('PIN harus 4 digit ya!')),
+                        );
+                      }
+                    },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF1CC600),
                       foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       elevation: 0,
                     ),
                     child: const Text(
                       'Lanjut',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                   ),
                 ),

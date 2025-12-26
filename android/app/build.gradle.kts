@@ -1,12 +1,12 @@
 plugins {
     id("com.android.application")
     id("kotlin-android")
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+    id("com.google.gms.google-services")
 }
 
 android {
-    namespace = "com.example.testing"
+    namespace = "com.example.thinko"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -20,11 +20,13 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.testing"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        applicationId = "com.example.thinko" // Pastikan ini sesuai
+        
+        // --- UBAH BAGIAN INI (Wajib buat Firebase) ---
+        minSdk = flutter.minSdkVersion   // Ganti flutter.minSdkVersion jadi 21
+        multiDexEnabled = true 
+        // --------------------------------------------
+
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
@@ -32,8 +34,6 @@ android {
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
         }
     }
@@ -41,4 +41,9 @@ android {
 
 flutter {
     source = "../.."
+}
+
+// --- TAMBAHKAN BLOK INI DI PALING BAWAH (PENTING!) ---
+dependencies {
+    implementation("androidx.multidex:multidex:2.0.1")
 }

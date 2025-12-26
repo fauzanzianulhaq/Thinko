@@ -1,3 +1,14 @@
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        // Pastikan versi ini sesuai
+        classpath("com.google.gms:google-services:4.4.2")
+    }
+}
+
 allprojects {
     repositories {
         google()
@@ -5,16 +16,18 @@ allprojects {
     }
 }
 
-val newBuildDir: Directory =
-    rootProject.layout.buildDirectory
-        .dir("../../build")
-        .get()
-rootProject.layout.buildDirectory.value(newBuildDir)
+// --- BAGIAN YANG DIPERBAIKI (Ganti nama variable) ---
+// Kita ubah 'newBuildDir' menjadi 'globalBuildDir' supaya tidak error Ambiguity
+val globalBuildDir = rootProject.layout.buildDirectory.dir("../../build").get()
+rootProject.layout.buildDirectory.value(globalBuildDir)
 
 subprojects {
-    val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
+    // Gunakan variabel baru 'globalBuildDir' di sini
+    val newSubprojectBuildDir = globalBuildDir.dir(project.name)
     project.layout.buildDirectory.value(newSubprojectBuildDir)
 }
+// ----------------------------------------------------
+
 subprojects {
     project.evaluationDependsOn(":app")
 }

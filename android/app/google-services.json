@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "746088478602",
+    "project_id": "thinko-ed2d9",
+    "storage_bucket": "thinko-ed2d9.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:746088478602:android:badb2fbb3f7c2fae1bba73",
+        "android_client_info": {
+          "package_name": "com.example.thinko"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCvcbcmRomwPWFWpUovDTvVvEdmrMHF8Vk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

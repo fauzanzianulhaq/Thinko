@@ -1,26 +1,73 @@
 import 'package:flutter/material.dart';
+import '../services/firebase_service.dart'; // Import Service
 import 'registration_success_page.dart';
 
 class PinConfirmationPage extends StatefulWidget {
-  // Kita butuh data PIN dari halaman sebelumnya untuk dicocokkan
+  final String username;
+  final int avatarIndex;
   final String sourcePin;
 
-  const PinConfirmationPage({super.key, required this.sourcePin});
+  const PinConfirmationPage({
+    super.key, 
+    required this.username, 
+    required this.avatarIndex, 
+    required this.sourcePin
+  });
 
   @override
   State<PinConfirmationPage> createState() => _PinConfirmationPageState();
 }
 
 class _PinConfirmationPageState extends State<PinConfirmationPage> {
+  final FirebaseService _firebaseService = FirebaseService();
   final List<TextEditingController> _controllers = List.generate(4, (index) => TextEditingController());
   final List<FocusNode> _focusNodes = List.generate(4, (index) => FocusNode());
-  bool _isPinVisible = false; // Default tersembunyi biar aman
+  
+  bool _isPinVisible = false; // Default tersembunyi
+  bool _isLoading = false;    // Status Loading
 
   @override
   void dispose() {
     for (var controller in _controllers) controller.dispose();
     for (var node in _focusNodes) node.dispose();
     super.dispose();
+  }
+
+  // --- LOGIKA SIMPAN DATA KE FIREBASE ---
+  void _handleFinalRegister() async {
+    String confirmPin = _controllers.map((c) => c.text).join();
+
+    // 1. Cek apakah PIN cocok dengan yang sebelumnya
+    if (confirmPin != widget.sourcePin) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Ups, PIN tidak sama. Coba lagi ya.'), backgroundColor: Colors.red),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true); // Mulai Loading
+
+    // 2. KIRIM KE FIREBASE
+    String? error = await _firebaseService.registerUser(
+      username: widget.username,
+      pin: confirmPin,
+    );
+
+    setState(() => _isLoading = false); // Stop Loading
+
+    // PERBAIKAN PENTING: Cek apakah halaman masih aktif sebelum pindah
+    if (!mounted) return;
+
+    if (error == null) {
+      // BERHASIL -> Pindah ke Halaman Sukses
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const RegistrationSuccessPage()),
+      );
+    } else {
+      // GAGAL -> Tampilkan Pesan Error
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+    }
   }
 
   @override
@@ -33,10 +80,7 @@ class _PinConfirmationPageState extends State<PinConfirmationPage> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFD0F8CE),
-              Colors.white,
-            ],
+            colors: [Color(0xFFD0F8CE), Colors.white],
           ),
         ),
         child: SafeArea(
@@ -44,7 +88,7 @@ class _PinConfirmationPageState extends State<PinConfirmationPage> {
             children: [
               const SizedBox(height: 10),
 
-              // Header: Tombol Kembali
+              // 1. Header: Tombol Kembali
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24.0),
                 child: Row(
@@ -68,7 +112,7 @@ class _PinConfirmationPageState extends State<PinConfirmationPage> {
 
               const SizedBox(height: 20),
 
-              // Progress Bar (Tetap sama seperti langkah sebelumnya sesuai desain)
+              // 2. Progress Bar (Sesuai desain kamu)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24.0),
                 child: Row(
@@ -76,30 +120,21 @@ class _PinConfirmationPageState extends State<PinConfirmationPage> {
                     Expanded(
                       child: Container(
                         height: 6,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF1CC600),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
+                        decoration: BoxDecoration(color: const Color(0xFF1CC600), borderRadius: BorderRadius.circular(10)),
                       ),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Container(
                         height: 6,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF1CC600),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
+                        decoration: BoxDecoration(color: const Color(0xFF1CC600), borderRadius: BorderRadius.circular(10)),
                       ),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Container(
                         height: 6,
-                        decoration: BoxDecoration(
-                          color: Colors.grey[350],
-                          borderRadius: BorderRadius.circular(10),
-                        ),
+                        decoration: BoxDecoration(color: Colors.grey[350], borderRadius: BorderRadius.circular(10)),
                       ),
                     ),
                   ],
@@ -120,20 +155,15 @@ class _PinConfirmationPageState extends State<PinConfirmationPage> {
                       
                       const SizedBox(height: 20),
 
-                      // Judul yang berbeda dari halaman sebelumnya
                       const Text(
                         'Sekarang tulis ulang PIN\nmu tadi',
                         textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black,
-                        ),
+                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black),
                       ),
 
                       const SizedBox(height: 40),
 
-                      // Input PIN
+                      // 3. Input PIN
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: List.generate(4, (index) {
@@ -152,10 +182,7 @@ class _PinConfirmationPageState extends State<PinConfirmationPage> {
                               obscureText: !_isPinVisible,
                               obscuringCharacter: '●',
                               style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
-                              decoration: const InputDecoration(
-                                border: InputBorder.none,
-                                counterText: "", 
-                              ),
+                              decoration: const InputDecoration(border: InputBorder.none, counterText: ""),
                               maxLength: 1,
                               onChanged: (value) {
                                 if (value.isNotEmpty && index < 3) {
@@ -172,7 +199,7 @@ class _PinConfirmationPageState extends State<PinConfirmationPage> {
 
                       const SizedBox(height: 20),
 
-                      // Toggle Visibility
+                      // Toggle Mata (Lihat PIN)
                       GestureDetector(
                         onTap: () {
                           setState(() {
@@ -190,49 +217,30 @@ class _PinConfirmationPageState extends State<PinConfirmationPage> {
                 ),
               ),
 
-              // Tombol "Selesai"
+              // 4. Tombol Selesai (Dengan Loading & Firebase)
               Padding(
                 padding: const EdgeInsets.all(24.0),
                 child: SizedBox(
                   width: double.infinity,
                   height: 55,
                   child: ElevatedButton(
-                    onPressed: () {
-            String confirmPin = _controllers.map((c) => c.text).join();
-  
-                if (confirmPin == widget.sourcePin) {
-              // SUKSES: PIN COCOK -> Pindah ke Halaman Sukses
-              Navigator.push(
-          context,
-      MaterialPageRoute(
-        builder: (context) => const RegistrationSuccessPage(),
-      ),
-         );
-             } else {
-          // GAGAL
-           ScaffoldMessenger.of(context).showSnackBar(
-           const SnackBar(
-           content: Text('Ups, PIN tidak sama. Coba lagi ya.'),
-            backgroundColor: Colors.red,
-                ),
-               );
-                 }
-                  },
+                    onPressed: _isLoading ? null : _handleFinalRegister, // Panggil Fungsi Backend
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF1CC600),
                       foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       elevation: 0,
                     ),
-                    child: const Text(
-                      'Selesai',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    child: _isLoading
+                      ? const SizedBox(
+                          height: 24, 
+                          width: 24, 
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3)
+                        )
+                      : const Text(
+                          'Selesai',
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
                   ),
                 ),
               ),

@@ -1,7 +1,20 @@
 import 'package:flutter/material.dart';
-import 'pages/welcome_page.dart'; // 1. Import file yang baru dibuat
+import 'package:firebase_core/firebase_core.dart';
+import 'pages/welcome_page.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // --- BAGIAN INI DIPERBARUI ---
+  // Kita pasang "jaring pengaman" (Try-Catch)
+  try {
+    await Firebase.initializeApp();
+    print("✅ FIREBASE SUKSES TERHUBUNG!"); // Cek tulisan ini di Debug Console nanti
+  } catch (e) {
+    print("❌ FIREBASE GAGAL: $e"); // Kalau error, alasannya akan muncul di sini
+  }
+  // -----------------------------
+
   runApp(const MyApp());
 }
 
@@ -11,13 +24,13 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      debugShowCheckedModeBanner: false, // Menghilangkan banner debug
+      debugShowCheckedModeBanner: false,
       title: 'Thinko App',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
         useMaterial3: true,
       ),
-      home: const WelcomePage(), // 2. Panggil halaman di sini
+      home: const WelcomePage(),
     );
   }
 }

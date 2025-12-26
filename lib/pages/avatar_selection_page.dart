@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'pin_creation_page.dart';
 
 class AvatarSelectionPage extends StatefulWidget {
-  const AvatarSelectionPage({super.key});
+  final String username; // Menerima data username dari halaman sebelumnya
+
+  const AvatarSelectionPage({super.key, required this.username});
 
   @override
   State<AvatarSelectionPage> createState() => _AvatarSelectionPageState();
@@ -12,15 +14,15 @@ class _AvatarSelectionPageState extends State<AvatarSelectionPage> {
   // Variabel untuk menyimpan pilihan user (0 = kiri, 1 = kanan)
   int _selectedIndex = 0;
 
-  // Data karakter (Nama & File Gambar)
+  // Data karakter
   final List<Map<String, String>> _characters = [
     {
-      'name': 'Lumi si Penyihir Pintar',
-      'image': 'assets/images/avatar_1.png', // Ganti dengan nama file kamu
+      'name': 'Lumi si Penyihir',
+      'image': 'assets/images/avatar_1.png', // Pastikan gambar ini ada di assets
     },
     {
-      'name': 'Kairo si Ninja Gesit',
-      'image': 'assets/images/avatar_2.png', // Ganti dengan nama file kamu
+      'name': 'Kairo si Ninja',
+      'image': 'assets/images/avatar_2.png', // Pastikan gambar ini ada di assets
     },
   ];
 
@@ -45,13 +47,13 @@ class _AvatarSelectionPageState extends State<AvatarSelectionPage> {
             children: [
               const SizedBox(height: 10),
 
-              // 1. Header: Tombol Kembali & Judul Kecil
+              // 1. Header: Tombol Kembali
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24.0),
                 child: Row(
                   children: [
                     GestureDetector(
-                      onTap: () => Navigator.pop(context), // Kembali ke halaman sebelumnya
+                      onTap: () => Navigator.pop(context),
                       child: const Row(
                         children: [
                           Icon(Icons.arrow_back, color: Colors.black),
@@ -69,34 +71,34 @@ class _AvatarSelectionPageState extends State<AvatarSelectionPage> {
 
               const SizedBox(height: 20),
 
-              // 2. Progress Bar (Baris 1 Hijau)
+              // 2. Progress Bar (Step 1 Hijau)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24.0),
                 child: Row(
                   children: [
-                    // Step 1: Hijau (Aktif)
+                    // Step 1: Hijau (Selesai)
                     Expanded(
                       child: Container(
                         height: 6,
                         decoration: BoxDecoration(
-                          color: const Color(0xFF1CC600), // Hijau
+                          color: const Color(0xFF1CC600),
                           borderRadius: BorderRadius.circular(10),
                         ),
                       ),
                     ),
                     const SizedBox(width: 8),
-                    // Step 2: Abu-abu
+                    // Step 2: Hijau (Aktif/Halaman ini)
                     Expanded(
                       child: Container(
                         height: 6,
                         decoration: BoxDecoration(
-                          color: Colors.grey[350],
+                          color: const Color(0xFF1CC600),
                           borderRadius: BorderRadius.circular(10),
                         ),
                       ),
                     ),
                     const SizedBox(width: 8),
-                    // Step 3: Abu-abu
+                    // Step 3: Abu-abu (Belum)
                     Expanded(
                       child: Container(
                         height: 6,
@@ -137,7 +139,7 @@ class _AvatarSelectionPageState extends State<AvatarSelectionPage> {
 
                       const SizedBox(height: 40),
 
-                      // 3. Pilihan Avatar (Row)
+                      // 3. Pilihan Avatar (Row) - INI YANG TADI HILANG
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -160,7 +162,7 @@ class _AvatarSelectionPageState extends State<AvatarSelectionPage> {
                         style: const TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
-                          color: Colors.grey, // Warna teks agak abu sesuai desain
+                          color: Colors.grey, 
                         ),
                       ),
                     ],
@@ -176,11 +178,16 @@ class _AvatarSelectionPageState extends State<AvatarSelectionPage> {
                   height: 55,
                   child: ElevatedButton(
                     onPressed: () {
-                  // Langsung pindah ke halaman buat PIN
-                Navigator.push(
-                  context,
-                MaterialPageRoute(builder: (context) => const PinCreationPage()),
-                  );
+                      // PINDAH HALAMAN BAWA: USERNAME + AVATAR INDEX
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => PinCreationPage(
+                            username: widget.username, // Oper data username
+                            avatarIndex: _selectedIndex, // Tambah data avatar
+                          ),
+                        ),
+                      );
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF1CC600),
@@ -207,7 +214,7 @@ class _AvatarSelectionPageState extends State<AvatarSelectionPage> {
     );
   }
 
-  // Widget kecil untuk membuat bunderan avatar
+  // Widget kecil untuk membuat tampilan avatar (INI JUGA TADI HILANG)
   Widget _buildAvatarOption(int index) {
     bool isSelected = _selectedIndex == index;
 
@@ -217,21 +224,33 @@ class _AvatarSelectionPageState extends State<AvatarSelectionPage> {
           _selectedIndex = index; // Update state saat diklik
         });
       },
-      child: Container(
-        padding: const EdgeInsets.all(4), // Jarak antara border dan gambar
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          // Jika dipilih, border hijau. Jika tidak, transparan.
-          border: Border.all(
-            color: isSelected ? const Color(0xFF1CC600) : Colors.transparent,
-            width: 3,
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(4), // Jarak antara border dan gambar
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              // Jika dipilih, border hijau. Jika tidak, transparan.
+              border: Border.all(
+                color: isSelected ? const Color(0xFF1CC600) : Colors.transparent,
+                width: 4,
+              ),
+            ),
+            child: CircleAvatar(
+              radius: 50, // Ukuran lingkaran
+              backgroundColor: Colors.grey[200],
+              backgroundImage: AssetImage(_characters[index]['image']!),
+            ),
           ),
-        ),
-        child: CircleAvatar(
-          radius: 50, // Ukuran lingkaran
-          backgroundColor: Colors.grey[200], // Warna background kalau gambar transparan
-          backgroundImage: AssetImage(_characters[index]['image']!),
-        ),
+          // Ikon centang hijau jika dipilih
+          if (isSelected)
+            const Padding(
+              padding: EdgeInsets.only(top: 8.0),
+              child: Icon(Icons.check_circle, color: Color(0xFF1CC600), size: 30),
+            )
+          else
+            const SizedBox(height: 38), // Spacer biar tinggi tetap sama walau ga ada ikon
+        ],
       ),
     );
   }
