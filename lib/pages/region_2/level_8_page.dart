@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'level_9_page.dart'; // Pastikan file ini ada untuk level selanjutnya
 
 class Level8Page extends StatefulWidget {
   const Level8Page({super.key});
@@ -8,7 +9,7 @@ class Level8Page extends StatefulWidget {
 }
 
 class _Level8PageState extends State<Level8Page> {
-  // --- DATA SOAL ---
+  // --- DATA SOAL LEVEL 8 ---
   final String question = "5 + 6";
   final int correctAnswer = 11;
   final List<int> options = [9, 6, 11, 10]; 
@@ -20,31 +21,30 @@ class _Level8PageState extends State<Level8Page> {
   // Logika Cek Jawaban
   void checkAnswer(int selectedAnswer) {
     if (selectedAnswer == correctAnswer) {
-      // JAWABAN BENAR: Kurangi darah Boss
+      // JAWABAN BENAR
       setState(() {
-        bossHealth -= 0.2; // Kurangi 20%
+        bossHealth -= 0.2; 
       });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("Serangan Berhasil!"), 
+          content: Text("Serangan Berhasil! Monster Gurun melemah!"), 
           backgroundColor: Colors.green,
           duration: Duration(milliseconds: 500),
         ),
       );
 
-      // Cek apakah Boss kalah (Health habis)
       if (bossHealth <= 0.05) { 
         _showWinDialog();
       }
 
     } else {
-      // JAWABAN SALAH: Kurangi darah User
+      // JAWABAN SALAH
       setState(() {
         userHealth -= 10;
       });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("Aduh! Jawaban salah!"), 
+          content: Text("Aduh! Panas! Jawaban salah!"), 
           backgroundColor: Colors.red,
           duration: Duration(milliseconds: 500),
         ),
@@ -52,24 +52,142 @@ class _Level8PageState extends State<Level8Page> {
     }
   }
 
-  // Dialog Menang
+  // --- POPUP KEMENANGAN (Sama seperti Level 6) ---
   void _showWinDialog() {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Text("Level Selesai! 🎉"),
-        content: const Text("Kamu berhasil mengalahkan monster gurun ini!"),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context); // Tutup Dialog
-              Navigator.pop(context); // Kembali ke Peta (Home)
-            },
-            child: const Text("Lanjut"),
-          )
-        ],
-      ),
+      builder: (context) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.all(20),
+          child: Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.center,
+            children: [
+              // KOTAK KONTEN
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(top: 40),
+                padding: const EdgeInsets.fromLTRB(20, 50, 20, 20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 10,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      "STAGE SELESAI !",
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 1.2),
+                    ),
+                    const SizedBox(height: 10),
+                    const Divider(color: Colors.grey, thickness: 0.5),
+                    const SizedBox(height: 10),
+                    
+                    // Subtitle
+                    const Text(
+                      "Hebat! Monster Gurun berhasil dikalahkan!",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 14, color: Colors.black54),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Bintang & Skor
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.stars_rounded, color: Colors.amber, size: 36),
+                          SizedBox(width: 8),
+                          Text("5", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 30),
+
+                    // Tombol Navigasi
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        // TOMBOL PETA
+                        InkWell(
+                          onTap: () {
+                            Navigator.pop(context); // 1. Tutup Dialog
+                            Navigator.pop(context); // 2. Tutup Level (Kembali ke Peta)
+                          },
+                          child: Column(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(color: Colors.green[50], shape: BoxShape.circle),
+                                child: Icon(Icons.list_alt_rounded, color: Colors.green[700], size: 30),
+                              ),
+                              const SizedBox(height: 4),
+                              const Text("Peta", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                            ],
+                          ),
+                        ),
+                        
+                        // TOMBOL STAGE BERIKUTNYA (Ke Level 8)
+                        InkWell(
+                          onTap: () {
+                             Navigator.pop(context); // 1. Tutup Dialog saja
+                             
+                             // 2. Langsung Ganti Level 7 dengan Level 8
+                             Navigator.pushReplacement(
+                               context, 
+                               MaterialPageRoute(builder: (context) => const Level9Page())
+                             );
+                          },
+                          child: Column(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(color: Colors.green[50], shape: BoxShape.circle),
+                                child: Icon(Icons.skip_next_rounded, color: Colors.green[700], size: 30),
+                              ),
+                              const SizedBox(height: 4),
+                              const Text("Stage berikutnya", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              // KEPALA ROBOT (LOGO THINKO)
+              Positioned(
+                top: 0,
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                  child: const CircleAvatar(
+                    radius: 35,
+                    backgroundColor: Colors.white,
+                    backgroundImage: AssetImage('assets/images/logo_thinko.png'),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -78,12 +196,12 @@ class _Level8PageState extends State<Level8Page> {
     return Scaffold(
       body: Stack(
         children: [
-          // 1. BACKGROUND (hutan.png)
+          // 1. BACKGROUND (Gurun - Level 7)
           Container(
             decoration: const BoxDecoration(
               image: DecorationImage(
-                image: AssetImage('assets/images/region_2/gurun.png'),
-                fit: BoxFit.cover, // Agar gambar memenuhi layar
+                image: AssetImage('assets/region_2/gurun.png'), 
+                fit: BoxFit.cover, 
               ),
             ),
           ),
@@ -135,24 +253,24 @@ class _Level8PageState extends State<Level8Page> {
                                 border: Border.all(color: Colors.black54),
                               ),
                             ),
-                            // Isi Darah Merah
+                            // Isi Darah (Ungu Khas Boss Level 7)
                             FractionallySizedBox(
-                              widthFactor: bossHealth > 0 ? bossHealth : 0, // Cegah error minus
+                              widthFactor: bossHealth > 0 ? bossHealth : 0, 
                               child: Container(
                                 height: 14,
                                 decoration: BoxDecoration(
-                                  color: Colors.redAccent,
+                                  color: Colors.redAccent, // Tetap ungu agar beda dengan level lain
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                               ),
                             ),
-                            // Icon Boss Kecil (Opsional: Pakai gambar monster lagi tapi kecil)
+                            // Icon Boss Kecil
                             const Positioned(
                               right: 0,
                               child: CircleAvatar(
                                 radius: 16,
                                 backgroundColor: Colors.white,
-                                backgroundImage: AssetImage('assets/images/region_2/monster_lvl_8.png'),
+                                backgroundImage: AssetImage('assets/region_2/monster_lvl_8.png'),
                               ),
                             ),
                           ],
@@ -164,7 +282,7 @@ class _Level8PageState extends State<Level8Page> {
 
                 const Spacer(),
 
-                // --- ARENA KARAKTER (FIX GARIS KUNING) ---
+                // --- ARENA KARAKTER ---
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Row(
@@ -175,18 +293,18 @@ class _Level8PageState extends State<Level8Page> {
                       Flexible(
                         child: Image.asset(
                           'assets/images/mc.png',
-                          height: 150, // Tinggi maksimal
-                          fit: BoxFit.contain, // Agar gambar tidak gepeng
+                          height: 150, 
+                          fit: BoxFit.contain, 
                         ),
                       ),
                       
-                      const SizedBox(width: 10), // Jarak aman
+                      const SizedBox(width: 10), 
 
                       // MUSUH (Kanan)
                       Flexible(
                         child: Image.asset(
-                          'assets/images/region_2/monster_lvl_8.png',
-                          height: 180, // Monster biasanya lebih besar sedikit
+                          'assets/region_2/monster_lvl_8.png',
+                          height: 180, 
                           fit: BoxFit.contain,
                         ),
                       ),
@@ -204,12 +322,9 @@ class _Level8PageState extends State<Level8Page> {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
+                    // Shadow disamakan dengan Level 6
                     boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
-                        blurRadius: 10,
-                        offset: const Offset(0, 5),
-                      ),
+                      BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, 5))
                     ],
                   ),
                   child: Text(
@@ -240,11 +355,7 @@ class _Level8PageState extends State<Level8Page> {
                             color: const Color(0xFFF0F0F0),
                             borderRadius: BorderRadius.circular(12),
                             boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
-                                blurRadius: 4,
-                                offset: const Offset(0, 4),
-                              ),
+                              BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 4))
                             ],
                           ),
                           child: Center(

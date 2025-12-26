@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../region_2/level_7_page.dart';
+import '../region_2/level_7_page.dart'; // Pastikan import ini sesuai dengan struktur foldermu
 
 class Level6Page extends StatefulWidget {
   const Level6Page({super.key});
@@ -27,7 +27,7 @@ class _Level6PageState extends State<Level6Page> {
       });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("Serangan Telak! Golem Es retak!"), // Teks disesuaikan tema es
+          content: Text("Serangan Telak! Golem Es retak!"),
           backgroundColor: Colors.green,
           duration: Duration(milliseconds: 500),
         ),
@@ -43,7 +43,7 @@ class _Level6PageState extends State<Level6Page> {
       });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("Brrr! Dingin! Jawabanmu salah!"), // Teks disesuaikan tema es
+          content: Text("Brrr! Dingin! Jawabanmu salah!"),
           backgroundColor: Colors.red,
           duration: Duration(milliseconds: 500),
         ),
@@ -122,10 +122,11 @@ class _Level6PageState extends State<Level6Page> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
+                        // TOMBOL PETA
                         InkWell(
                           onTap: () {
-                            Navigator.pop(context);
-                            Navigator.pop(context);
+                            Navigator.pop(context); // 1. Tutup Dialog
+                            Navigator.pop(context); // 2. Tutup Level (Kembali ke Peta)
                           },
                           child: Column(
                             children: [
@@ -139,14 +140,18 @@ class _Level6PageState extends State<Level6Page> {
                             ],
                           ),
                         ),
+                        
+                        // TOMBOL STAGE BERIKUTNYA (Perbaikan di sini)
                         InkWell(
                           onTap: () {
-                             Navigator.pop(context);
-                             Navigator.pop(context);
-                             Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const Level7Page()));
-                            //  ScaffoldMessenger.of(context).showSnackBar(
-                            //    const SnackBar(content: Text("Level 4 Segera Hadir!")),
-                            //  );
+                             Navigator.pop(context); // 1. Tutup Dialog saja
+                             
+                             // 2. Langsung Ganti Level 6 dengan Level 7
+                             // (JANGAN pakai Navigator.pop lagi di sini)
+                             Navigator.pushReplacement(
+                               context, 
+                               MaterialPageRoute(builder: (context) => const Level7Page())
+                             );
                           },
                           child: Column(
                             children: [
@@ -195,7 +200,7 @@ class _Level6PageState extends State<Level6Page> {
           Container(
             decoration: const BoxDecoration(
               image: DecorationImage(
-                image: AssetImage('assets/images/hutan.png'), // <-- PASTIKAN NAMA FILE INI BENAR
+                image: AssetImage('assets/images/hutan.png'), 
                 fit: BoxFit.cover,
               ),
             ),
@@ -259,7 +264,7 @@ class _Level6PageState extends State<Level6Page> {
                               child: CircleAvatar(
                                 radius: 16,
                                 backgroundColor: Colors.white,
-                                backgroundImage: AssetImage('assets/images/monster_level_6.png'), // Pakai gambar monster es baru
+                                backgroundImage: AssetImage('assets/images/monster_level_6.png'),
                               ),
                             ),
                           ],
@@ -290,7 +295,7 @@ class _Level6PageState extends State<Level6Page> {
                       // MUSUH BARU (Golem Es)
                       Flexible(
                         child: Image.asset(
-                          'assets/images/monster_level_6.png', // <-- Pastikan ini gambar Golem Es
+                          'assets/images/monster_level_6.png', 
                           height: 170, 
                           fit: BoxFit.contain,
                         ),

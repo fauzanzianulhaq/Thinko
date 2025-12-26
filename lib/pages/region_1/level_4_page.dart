@@ -52,6 +52,7 @@ class _Level4PageState extends State<Level4Page> {
   }
 
   // --- POPUP KEMENANGAN ---
+  // --- POPUP KEMENANGAN ---
   void _showWinDialog() {
     showDialog(
       context: context,
@@ -64,7 +65,7 @@ class _Level4PageState extends State<Level4Page> {
             clipBehavior: Clip.none,
             alignment: Alignment.center,
             children: [
-              // KOTAK KONTEN
+              // ... (Bagian Container UI atas biarkan saja sama) ...
               Container(
                 width: double.infinity,
                 margin: const EdgeInsets.only(top: 40),
@@ -91,7 +92,6 @@ class _Level4PageState extends State<Level4Page> {
                     const Divider(color: Colors.grey, thickness: 0.5),
                     const SizedBox(height: 10),
                     
-                    // Subtitle
                     const Text(
                       "Luar biasa! Golem Es berhasil dicairkan!",
                       textAlign: TextAlign.center,
@@ -118,14 +118,15 @@ class _Level4PageState extends State<Level4Page> {
 
                     const SizedBox(height: 30),
 
-                    // Tombol Navigasi
+                    // --- PERBAIKAN DI SINI (TOMBOL NAVIGASI) ---
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
+                        // TOMBOL PETA (KEMBALI KE HOME)
                         InkWell(
                           onTap: () {
-                            Navigator.pop(context);
-                            Navigator.pop(context);
+                            Navigator.pop(context); // 1. Tutup Dialog
+                            Navigator.pop(context); // 2. Tutup Level 4 (Kembali ke Peta)
                           },
                           child: Column(
                             children: [
@@ -139,14 +140,18 @@ class _Level4PageState extends State<Level4Page> {
                             ],
                           ),
                         ),
+                        
+                        // TOMBOL STAGE BERIKUTNYA (KE LEVEL 5)
                         InkWell(
                           onTap: () {
-                             Navigator.pop(context);
-                             Navigator.pop(context);
-                             Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const Level5Page()));
-                            //  ScaffoldMessenger.of(context).showSnackBar(
-                            //    const SnackBar(content: Text("Level 4 Segera Hadir!")),
-                            //  );
+                             Navigator.pop(context); // 1. Tutup Dialog saja
+                             
+                             // 2. Langsung Replace Level 4 dengan Level 5
+                             // (Jangan pakai Navigator.pop lagi di sini)
+                             Navigator.pushReplacement(
+                               context, 
+                               MaterialPageRoute(builder: (context) => const Level5Page())
+                             );
                           },
                           child: Column(
                             children: [
@@ -166,7 +171,7 @@ class _Level4PageState extends State<Level4Page> {
                 ),
               ),
 
-              // KEPALA ROBOT
+              // ... (Bagian Kepala Robot biarkan saja sama) ...
               Positioned(
                 top: 0,
                 child: Container(
