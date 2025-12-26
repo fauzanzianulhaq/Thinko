@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'profile_page.dart';
 import 'region_1/level_1_page.dart';
 import 'region_1/level_2_page.dart';
 import 'region_1/level_3_page.dart';
@@ -97,37 +98,47 @@ class _HomePageState extends State<HomePage> {
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.all(16.0),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 8,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const CircleAvatar(
-                      radius: 20,
-                      backgroundImage: AssetImage('assets/images/mc.png'),
-                      backgroundColor: Colors.grey,
-                    ),
-                    const SizedBox(width: 10),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Text("Lumi", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                        Text("Level $currentLevel", style: TextStyle(fontSize: 12, color: Colors.green)),
-                      ],
-                    ),
-                  ],
+              child: GestureDetector( // <--- 1. Kita bungkus Container dengan ini
+                onTap: () {
+                  print("Masuk ke Profil");
+                  // 2. Navigasi ke halaman ProfilePage
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const ProfilePage()),
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const CircleAvatar(
+                        radius: 20,
+                        backgroundImage: AssetImage('assets/images/mc.png'),
+                        backgroundColor: Colors.grey,
+                      ),
+                      const SizedBox(width: 10),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text("Lumi", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                          Text("Level $currentLevel", style: TextStyle(fontSize: 12, color: Colors.green)),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
