@@ -1,6 +1,8 @@
+import 'dart:async'; // Timer
+import 'dart:math';  // Random
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart'; // Wajib ada untuk fix error navigasi
-import 'level_4_page.dart'; // Import Level 4 kamu
+import 'package:flutter/scheduler.dart'; 
+import 'level_4_page.dart'; // Pastikan file level 4 sudah ada
 
 class Level3Page extends StatefulWidget {
   const Level3Page({super.key});
@@ -10,60 +12,196 @@ class Level3Page extends StatefulWidget {
 }
 
 class _Level3PageState extends State<Level3Page> {
-  // --- DATA SOAL (30 - 15 + 2 = 17) ---
-  final String question = "30 - 15 + 2";
-  final int correctAnswer = 17;
-  final List<int> options = [17, 15, 16, 18];
+  // --- KONFIGURASI LEVEL 3 ---
+  final int enemyAttackSpeedMs = 1500; 
+  final int enemyDamage = 5;           
+  final double userDamage = 0.25;      
 
-  // --- STATUS GAME ---
+  // --- STATE GAME ---
   int userHealth = 100;
   double bossHealth = 1.0; 
-  bool isGameFinished = false; // Mencegah dialog muncul berkali-kali
+  Timer? _enemyAttackTimer;
+  bool _isStunned = false; 
+  bool isGameFinished = false;
 
-  // Logika Cek Jawaban
+  // --- DATA SOAL DINAMIS ---
+  String question = "";
+  int correctAnswer = 0;
+  List<int> options = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _generateQuestion(); 
+    _startEnemyAttack(); 
+  }
+
+  @override
+  void dispose() {
+    _enemyAttackTimer?.cancel(); 
+    super.dispose();
+  }
+
+  // --- LOGIKA MUSUH MENYERANG ---
+  void _startEnemyAttack() {
+    _enemyAttackTimer = Timer.periodic(Duration(milliseconds: enemyAttackSpeedMs), (timer) {
+      if (userHealth > 0 && bossHealth > 0.05 && !isGameFinished) {
+        setState(() {
+          userHealth -= enemyDamage;
+        });
+
+        if (userHealth <= 0) {
+          userHealth = 0;
+          timer.cancel();
+          _showGameOverDialog();
+        }
+      }
+    });
+  }
+
+  // --- LOGIKA SOAL (Level 3: Operasi Campuran 3 Angka) ---
+  void _generateQuestion() {
+    Random random = Random();
+    // Acak jenis soal: 0 = (+-), 1 = (x+), 2 = (:/)
+    int type = random.nextInt(3); 
+    int a, b, c;
+
+    if (type == 0) {
+      // TIPE 1: Penjumlahan & Pengurangan (A - B + C)
+      a = random.nextInt(30) + 10; // 10-39
+      b = random.nextInt(10) + 1;  // 1-10
+      c = random.nextInt(10) + 1;  // 1-10
+      
+      // Pastikan hasil tidak negatif di tengah jalan
+      if (a < b) { int temp = a; a = b; b = temp; } 
+      
+      question = "$a - $b + $c";
+      correctAnswer = a - b + c;
+
+    } else if (type == 1) {
+      // TIPE 2: Perkalian & Penjumlahan (A x B + C)
+      // Ingat: Perkalian didahulukan secara matematika
+      a = random.nextInt(8) + 2;   // 2-9
+      b = random.nextInt(8) + 2;   // 2-9
+      c = random.nextInt(20) + 1;  // 1-20
+      
+      question = "$a × $b + $c";
+      correctAnswer = (a * b) + c;
+
+    } else {
+      // TIPE 3: Pembagian & Pengurangan (A : B - C)
+      // Kita buat A harus habis dibagi B
+      b = random.nextInt(5) + 2;        // Pembagi: 2-6
+      int hasilBagi = random.nextInt(8) + 5; // Hasil bagi: 5-12
+      a = b * hasilBagi;                // A otomatis kelipatan B
+      c = random.nextInt(hasilBagi - 1) + 1; // C < Hasil Bagi (biar positif)
+
+      question = "$a : $b - $c";
+      correctAnswer = (a ~/ b) - c;
+    }
+
+    // Generate Opsi Jawaban (1 Benar, 3 Salah)
+    Set<int> optionsSet = {correctAnswer};
+    while (optionsSet.length < 4) {
+      int offset = random.nextInt(5) + 1; // Jawaban pengecoh beda dikit
+      optionsSet.add(random.nextBool() ? correctAnswer + offset : correctAnswer - offset);
+    }
+    options = optionsSet.toList()..shuffle();
+    
+    if (mounted) setState(() {});
+  }
+
+  // --- CEK JAWABAN ---
   void checkAnswer(int selectedAnswer) {
-    if (isGameFinished) return; // Stop jika game sudah selesai
+    if (isGameFinished || _isStunned) return; 
 
     if (selectedAnswer == correctAnswer) {
-      // JAWABAN BENAR
+      // BENAR
       setState(() {
-        bossHealth -= 0.2; 
+        bossHealth -= userDamage; 
       });
+      
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text("Serangan Telak! Kumbang Kayu pusing!"),
           backgroundColor: Colors.green,
-          duration: Duration(milliseconds: 500),
+          duration: Duration(milliseconds: 300),
         ),
       );
 
       // Cek Menang
       if (bossHealth <= 0.05) {
         setState(() {
-          isGameFinished = true;
           bossHealth = 0;
+          isGameFinished = true;
         });
+        _enemyAttackTimer?.cancel();
 
-        // --- SOLUSI ERROR NAVIGATOR ---
-        // Jadwalkan dialog muncul SETELAH layar selesai digambar
         SchedulerBinding.instance.addPostFrameCallback((_) {
           if (mounted) _showWinDialog();
         });
+      } else {
+        _generateQuestion(); // Ganti soal
       }
 
     } else {
-      // JAWABAN SALAH
+      // SALAH -> Kena Stun
       setState(() {
-        userHealth -= 15; 
+        _isStunned = true; 
       });
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("Aduh! Hitunganmu meleset!"),
+          content: Text("Salah! Kamu kena stun!"),
           backgroundColor: Colors.red,
           duration: Duration(milliseconds: 500),
         ),
       );
+
+      Future.delayed(const Duration(seconds: 3), () {
+        if (mounted) {
+          setState(() {
+            _isStunned = false; 
+            _generateQuestion(); 
+          });
+        }
+      });
     }
+  }
+
+  // --- GAME OVER ---
+  void _showGameOverDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text("Game Over! 💀", style: TextStyle(color: Colors.red)),
+        content: const Text("Kumbang Kayu terlalu kuat!"),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.pop(context); 
+            },
+            child: const Text("Keluar"),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              setState(() {
+                userHealth = 100;
+                bossHealth = 1.0;
+                isGameFinished = false;
+                _isStunned = false;
+                _generateQuestion();
+                _startEnemyAttack();
+              });
+            },
+            child: const Text("Coba Lagi"),
+          )
+        ],
+      ),
+    );
   }
 
   // --- POPUP KEMENANGAN ---
@@ -99,7 +237,7 @@ class _Level3PageState extends State<Level3Page> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const Text(
-                      "STAGE SELESAI !",
+                      "LEVEL 3 SELESAI !",
                       style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 1.2),
                     ),
                     const SizedBox(height: 10),
@@ -158,7 +296,6 @@ class _Level3PageState extends State<Level3Page> {
                         InkWell(
                           onTap: () {
                              Navigator.pop(context); // Tutup dialog
-                             // Ganti halaman ke Level 4
                              Navigator.pushReplacement(
                                context, 
                                MaterialPageRoute(builder: (context) => const Level4Page())
@@ -272,7 +409,7 @@ class _Level3PageState extends State<Level3Page> {
                               child: CircleAvatar(
                                 radius: 16,
                                 backgroundColor: Colors.white,
-                                backgroundImage: AssetImage('assets/images/lvl3.png'), 
+                                backgroundImage: AssetImage('assets/images/monster_level_3.png'), 
                               ),
                             ),
                           ],
@@ -282,6 +419,20 @@ class _Level3PageState extends State<Level3Page> {
                   ),
                 ),
                 const Spacer(),
+                
+                // VISUAL STUN
+                if (_isStunned)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 20),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.7),
+                      borderRadius: BorderRadius.circular(20)
+                    ),
+                    child: const Text("KAMU PUSING! (STUNNED)", 
+                      style: TextStyle(color: Colors.yellow, fontWeight: FontWeight.bold)),
+                  ),
+
                 // ARENA
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -294,13 +445,15 @@ class _Level3PageState extends State<Level3Page> {
                           'assets/images/mc.png',
                           height: 150,
                           fit: BoxFit.contain,
+                          // color: _isStunned ? Colors.grey : null,
+                          // colorBlendMode: _isStunned ? BlendMode.saturation : null,
                         ),
                       ),
                       const SizedBox(width: 10),
                       Flexible(
                         child: Image.asset(
-                          'assets/images/lvl3.png', 
-                          height: 160, 
+                          'assets/images/monster_level_3.png', 
+                          height: 170, 
                           fit: BoxFit.contain,
                         ),
                       ),
@@ -335,18 +488,21 @@ class _Level3PageState extends State<Level3Page> {
                     children: options.map((option) {
                       return GestureDetector(
                         onTap: () => checkAnswer(option),
-                        child: Container(
-                          width: 65,
-                          height: 65,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF0F0F0),
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 4))],
-                          ),
-                          child: Center(
-                            child: Text(
-                              "$option",
-                              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87),
+                        child: Opacity(
+                          opacity: _isStunned ? 0.5 : 1.0,
+                          child: Container(
+                            width: 65,
+                            height: 65,
+                            decoration: BoxDecoration(
+                              color: _isStunned ? Colors.grey : const Color(0xFFF0F0F0),
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 4))],
+                            ),
+                            child: Center(
+                              child: Text(
+                                "$option",
+                                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87),
+                              ),
                             ),
                           ),
                         ),

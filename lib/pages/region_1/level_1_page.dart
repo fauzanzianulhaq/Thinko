@@ -1,5 +1,6 @@
+import 'dart:async'; // Untuk Timer
+import 'dart:math';  // Untuk Random Soal
 import 'package:flutter/material.dart';
-// Import Level 2 agar tombol "Stage Berikutnya" berfungsi
 import 'level_2_page.dart'; 
 
 class Level1Page extends StatefulWidget {
@@ -10,151 +11,252 @@ class Level1Page extends StatefulWidget {
 }
 
 class _Level1PageState extends State<Level1Page> {
-  // --- DATA SOAL ---
-  final String question = "5 + 6";
-  final int correctAnswer = 11;
-  final List<int> options = [9, 6, 11, 10]; 
+  // --- KONFIGURASI LEVEL 1 (EASY MODE) ---
+  final int enemyAttackSpeedMs = 2000; // Musuh nyerang lambat (tiap 2 detik)
+  final int enemyDamage = 2;           // Damage musuh kecil
+  final double userDamage = 0.25;      // Damage user besar (Cukup 4x benar untuk menang)
 
-  // --- STATUS GAME ---
+  // --- STATE GAME ---
   int userHealth = 100;
   double bossHealth = 1.0; 
+  Timer? _enemyAttackTimer;
+  bool _isStunned = false; // Status apakah sedang kena stun
 
-  // Logika Cek Jawaban
+  // --- DATA SOAL DINAMIS ---
+  String question = "";
+  int correctAnswer = 0;
+  List<int> options = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _generateQuestion(); // Buat soal pertama
+    _startEnemyAttack(); // Mulai serangan musuh otomatis
+  }
+
+  @override
+  void dispose() {
+    _enemyAttackTimer?.cancel(); // Matikan timer saat keluar halaman
+    super.dispose();
+  }
+
+  // --- LOGIKA MUSUH MENYERANG OTOMATIS ---
+  void _startEnemyAttack() {
+    _enemyAttackTimer = Timer.periodic(Duration(milliseconds: enemyAttackSpeedMs), (timer) {
+      if (userHealth > 0 && bossHealth > 0.05) {
+        setState(() {
+          userHealth -= enemyDamage;
+        });
+
+        // Cek Game Over (HP User Habis)
+        if (userHealth <= 0) {
+          userHealth = 0;
+          timer.cancel();
+          _showGameOverDialog();
+        }
+      }
+    });
+  }
+
+  // --- LOGIKA GENERATE SOAL MATEMATIKA (MUDAH: Angka 1-20) ---
+  void _generateQuestion() {
+    Random random = Random();
+    int operator = random.nextInt(4); // 0: +, 1: -, 2: *, 3: /
+    int a, b;
+
+    switch (operator) {
+      case 0: // Penjumlahan (Angka 1-10)
+        a = random.nextInt(10) + 1; 
+        b = random.nextInt(10) + 1;
+        question = "$a + $b";
+        correctAnswer = a + b;
+        break;
+      case 1: // Pengurangan (Hasil Positif)
+        a = random.nextInt(10) + 5; // 5-14
+        b = random.nextInt(a) + 1;  // Pastikan b < a
+        question = "$a - $b";
+        correctAnswer = a - b;
+        break;
+      case 2: // Perkalian (Angka 1-5 saja)
+        a = random.nextInt(5) + 1;
+        b = random.nextInt(5) + 1;
+        question = "$a × $b";
+        correctAnswer = a * b;
+        break;
+      case 3: // Pembagian (Sangat Sederhana)
+        b = random.nextInt(4) + 2; // Pembagi 2-5
+        int result = random.nextInt(5) + 1; // Hasil 1-5
+        a = b * result; 
+        question = "$a : $b";
+        correctAnswer = result;
+        break;
+      default:
+        a = 1; b = 1; question = "1+1"; correctAnswer = 2;
+    }
+
+    // Generate Opsi Jawaban (1 Benar, 3 Salah)
+    Set<int> optionsSet = {correctAnswer};
+    while (optionsSet.length < 4) {
+      int offset = random.nextInt(3) + 1; // Jawaban salah beda dikit (1-3 angka)
+      optionsSet.add(random.nextBool() ? correctAnswer + offset : correctAnswer - offset);
+    }
+    options = optionsSet.toList()..shuffle();
+    
+    // Pastikan UI terupdate
+    if (mounted) setState(() {});
+  }
+
+  // --- CEK JAWABAN ---
   void checkAnswer(int selectedAnswer) {
+    if (_isStunned) return; // Kalau lagi stun, tombol gabisa diklik
+
     if (selectedAnswer == correctAnswer) {
       // JAWABAN BENAR
       setState(() {
-        bossHealth -= 0.2; 
+        bossHealth -= userDamage; 
       });
+      
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text("Serangan Berhasil!"), 
           backgroundColor: Colors.green,
-          duration: Duration(milliseconds: 500),
+          duration: Duration(milliseconds: 300),
         ),
       );
 
       // Cek Menang
       if (bossHealth <= 0.05) { 
+        bossHealth = 0;
+        _enemyAttackTimer?.cancel(); // Stop serangan musuh
         _showWinDialog();
+      } else {
+        _generateQuestion(); // Ganti soal
       }
 
     } else {
-      // JAWABAN SALAH
+      // JAWABAN SALAH -> Kena Stun
       setState(() {
-        userHealth -= 10;
+        _isStunned = true; // Aktifkan stun
       });
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("Aduh! Jawaban salah!"), 
+          content: Text("Salah! Kamu terkena Stun 2 Detik!"), 
           backgroundColor: Colors.red,
-          duration: Duration(milliseconds: 500),
+          duration: Duration(milliseconds: 1000),
         ),
       );
+
+      // Timer Stun (Dikurangi jadi 2 detik biar ga kelamaan)
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted) {
+          setState(() {
+            _isStunned = false; // Matikan stun
+            _generateQuestion(); // Ganti soal setelah stun selesai
+          });
+        }
+      });
     }
   }
 
-  // --- POPUP KEMENANGAN (DESAIN BARU) ---
+  // --- DIALOG GAME OVER ---
+  void _showGameOverDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text("Game Over! 💀", style: TextStyle(color: Colors.red)),
+        content: const Text("HP kamu habis! Jangan menyerah, coba lagi!"),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.pop(context); // Kembali ke Peta
+            },
+            child: const Text("Keluar"),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              // Reset Game
+              setState(() {
+                userHealth = 100;
+                bossHealth = 1.0;
+                _isStunned = false;
+                _generateQuestion();
+                _startEnemyAttack();
+              });
+            },
+            child: const Text("Coba Lagi"),
+          )
+        ],
+      ),
+    );
+  }
+
+  // --- POPUP KEMENANGAN ---
   void _showWinDialog() {
     showDialog(
       context: context,
-      barrierDismissible: false, // User tidak bisa klik luar untuk tutup
+      barrierDismissible: false, 
       builder: (context) {
         return Dialog(
-          backgroundColor: Colors.transparent, // Transparan agar kepala robot terlihat nongol
+          backgroundColor: Colors.transparent, 
           insetPadding: const EdgeInsets.all(20),
           child: Stack(
-            clipBehavior: Clip.none, // Izinkan elemen keluar dari batas stack (untuk kepala)
+            clipBehavior: Clip.none, 
             alignment: Alignment.center,
             children: [
               // 1. KOTAK KONTEN PUTIH
               Container(
                 width: double.infinity,
-                margin: const EdgeInsets.only(top: 40), // Beri jarak atas untuk kepala
-                padding: const EdgeInsets.fromLTRB(20, 50, 20, 20), // Padding atas besar biar ga ketutup kepala
+                margin: const EdgeInsets.only(top: 40), 
+                padding: const EdgeInsets.fromLTRB(20, 50, 20, 20),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
-                      blurRadius: 10,
-                      offset: const Offset(0, 5),
-                    ),
+                    BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 10, offset: const Offset(0, 5)),
                   ],
                 ),
                 child: Column(
-                  mainAxisSize: MainAxisSize.min, // Tinggi menyesuaikan isi
+                  mainAxisSize: MainAxisSize.min, 
                   children: [
-                    // JUDUL
                     const Text(
                       "STAGE SELESAI !",
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
-                        letterSpacing: 1.2,
-                      ),
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 1.2),
                     ),
                     const SizedBox(height: 10),
                     const Divider(color: Colors.grey, thickness: 0.5),
                     const SizedBox(height: 10),
-                    
-                    // SUBTITLE
-                    const Text(
-                      "Wow! Kamu menyelesaikannya dengan baik!",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.black54,
-                      ),
-                    ),
+                    const Text("Wow! Kamu menyelesaikannya dengan baik!", textAlign: TextAlign.center, style: TextStyle(fontSize: 14, color: Colors.black54)),
                     const SizedBox(height: 20),
-
-                    // BINTANG & SKOR (Sesuai gambar)
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.amber.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(30),
-                      ),
+                      decoration: BoxDecoration(color: Colors.amber.withOpacity(0.1), borderRadius: BorderRadius.circular(30)),
                       child: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.stars_rounded, color: Colors.amber, size: 36), // Ikon Bintang
+                          Icon(Icons.stars_rounded, color: Colors.amber, size: 36),
                           SizedBox(width: 8),
-                          Text(
-                            "5",
-                            style: TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black87,
-                            ),
-                          ),
+                          Text("5", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
                         ],
                       ),
                     ),
-
                     const SizedBox(height: 30),
-
-                    // TOMBOL NAVIGASI (Peta & Next)
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        // TOMBOL PETA
                         InkWell(
                           onTap: () {
-                            Navigator.pop(context); // Tutup Dialog
-                            Navigator.pop(context); // Kembali ke Home Page
+                            Navigator.pop(context); 
+                            Navigator.pop(context); 
                           },
                           child: Column(
                             children: [
                               Container(
                                 padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color: Colors.green[50], // Hijau pudar background
-                                  shape: BoxShape.circle,
-                                ),
+                                decoration: BoxDecoration(color: Colors.green[50], shape: BoxShape.circle),
                                 child: Icon(Icons.list_alt_rounded, color: Colors.green[700], size: 30),
                               ),
                               const SizedBox(height: 4),
@@ -162,25 +264,16 @@ class _Level1PageState extends State<Level1Page> {
                             ],
                           ),
                         ),
-
-                        // TOMBOL STAGE BERIKUTNYA
                         InkWell(
                           onTap: () {
-                            Navigator.pop(context); // Tutup Dialog
-                            // Navigasi ke Level 2 (Replace biar ga numpuk)
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(builder: (context) => const Level2Page()),
-                            );
+                            Navigator.pop(context); 
+                            Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const Level2Page()));
                           },
                           child: Column(
                             children: [
                               Container(
                                 padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color: Colors.green[50],
-                                  shape: BoxShape.circle,
-                                ),
+                                decoration: BoxDecoration(color: Colors.green[50], shape: BoxShape.circle),
                                 child: Icon(Icons.skip_next_rounded, color: Colors.green[700], size: 30),
                               ),
                               const SizedBox(height: 4),
@@ -193,20 +286,16 @@ class _Level1PageState extends State<Level1Page> {
                   ],
                 ),
               ),
-
-              // 2. KEPALA ROBOT (Floating di atas kotak)
+              // 2. KEPALA ROBOT
               Positioned(
-                top: 0, // Nempel di paling atas Stack
+                top: 0, 
                 child: Container(
                   padding: const EdgeInsets.all(4),
-                  decoration: const BoxDecoration(
-                    color: Colors.white, // Border putih
-                    shape: BoxShape.circle,
-                  ),
-                  child: CircleAvatar(
-                    radius: 35, // Ukuran kepala
+                  decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                  child: const CircleAvatar(
+                    radius: 35, 
                     backgroundColor: Colors.white,
-                    backgroundImage: AssetImage('assets/images/logo_thinko.png'), // Pastikan ini logo robotmu
+                    backgroundImage: AssetImage('assets/images/logo_thinko.png'), 
                   ),
                 ),
               ),
@@ -236,7 +325,7 @@ class _Level1PageState extends State<Level1Page> {
           SafeArea(
             child: Column(
               children: [
-                // HEADER
+                // HEADER (HP Bar)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   child: Row(
@@ -247,10 +336,11 @@ class _Level1PageState extends State<Level1Page> {
                         backgroundColor: Colors.white,
                       ),
                       const SizedBox(width: 8),
+                      // HP User (Akan berkurang otomatis)
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                         decoration: BoxDecoration(
-                          color: Colors.green,
+                          color: userHealth < 30 ? Colors.red : Colors.green, // Merah jika kritis
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(color: Colors.white, width: 2),
                         ),
@@ -259,10 +349,8 @@ class _Level1PageState extends State<Level1Page> {
                           style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
                         ),
                       ),
-                      
                       const Spacer(),
-
-                      // Boss HP
+                      // Boss HP Bar
                       Expanded(
                         flex: 4,
                         child: Stack(
@@ -277,7 +365,7 @@ class _Level1PageState extends State<Level1Page> {
                               ),
                             ),
                             FractionallySizedBox(
-                              widthFactor: bossHealth > 0 ? bossHealth : 0,
+                              widthFactor: bossHealth > 0 ? bossHealth : 0, 
                               child: Container(
                                 height: 14,
                                 decoration: BoxDecoration(
@@ -303,6 +391,19 @@ class _Level1PageState extends State<Level1Page> {
 
                 const Spacer(),
 
+                // VISUAL STUN (Jika kena stun, tampilkan teks)
+                if (_isStunned)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 20),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.7),
+                      borderRadius: BorderRadius.circular(20)
+                    ),
+                    child: const Text("TERSTUN! TUNGGU SEBENTAR...", 
+                      style: TextStyle(color: Colors.yellow, fontWeight: FontWeight.bold)),
+                  ),
+
                 // ARENA KARAKTER
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -313,15 +414,17 @@ class _Level1PageState extends State<Level1Page> {
                       Flexible(
                         child: Image.asset(
                           'assets/images/mc.png',
-                          height: 150,
-                          fit: BoxFit.contain,
+                          height: 150, 
+                          fit: BoxFit.contain, 
+                          color: _isStunned ? Colors.grey : null, // Efek visual karakter abu-abu saat stun
+                          colorBlendMode: _isStunned ? BlendMode.saturation : null,
                         ),
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 10), 
                       Flexible(
                         child: Image.asset(
                           'assets/images/lvl1.png',
-                          height: 180,
+                          height: 180, 
                           fit: BoxFit.contain,
                         ),
                       ),
@@ -331,7 +434,7 @@ class _Level1PageState extends State<Level1Page> {
 
                 const SizedBox(height: 20),
 
-                // SOAL
+                // --- KOTAK SOAL ---
                 Container(
                   margin: const EdgeInsets.symmetric(horizontal: 24),
                   padding: const EdgeInsets.symmetric(vertical: 16),
@@ -340,10 +443,11 @@ class _Level1PageState extends State<Level1Page> {
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
-                      BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, 5))],
+                      BoxShadow(color: Colors.black26, blurRadius: 10, offset: const Offset(0, 5)),
+                    ],
                   ),
                   child: Text(
-                    question,
+                    question, // Soal dinamis
                     textAlign: TextAlign.center,
                     style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.black87),
                   ),
@@ -351,7 +455,7 @@ class _Level1PageState extends State<Level1Page> {
 
                 const SizedBox(height: 20),
 
-                // OPSI JAWABAN
+                // --- OPSI JAWABAN ---
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
                   child: Row(
@@ -359,18 +463,21 @@ class _Level1PageState extends State<Level1Page> {
                     children: options.map((option) {
                       return GestureDetector(
                         onTap: () => checkAnswer(option),
-                        child: Container(
-                          width: 65,
-                          height: 65,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF0F0F0),
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 4))],
-                          ),
-                          child: Center(
-                            child: Text(
-                              "$option",
-                              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87),
+                        child: Opacity(
+                          opacity: _isStunned ? 0.5 : 1.0, // Tombol agak transparan kalau stun
+                          child: Container(
+                            width: 65,
+                            height: 65,
+                            decoration: BoxDecoration(
+                              color: _isStunned ? Colors.grey[400] : const Color(0xFFF0F0F0), // Warna abu jika stun
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: const Offset(0, 4))],
+                            ),
+                            child: Center(
+                              child: Text(
+                                "$option",
+                                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87),
+                              ),
                             ),
                           ),
                         ),

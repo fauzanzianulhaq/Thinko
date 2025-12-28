@@ -34,13 +34,17 @@ class _PinConfirmationPageState extends State<PinConfirmationPage> {
   }
 
   // --- LOGIKA SIMPAN DATA KE FIREBASE ---
+  // --- LOGIKA SIMPAN DATA KE FIREBASE ---
   void _handleFinalRegister() async {
     String confirmPin = _controllers.map((c) => c.text).join();
 
-    // 1. Cek apakah PIN cocok dengan yang sebelumnya
+    // 1. Cek apakah PIN cocok
     if (confirmPin != widget.sourcePin) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ups, PIN tidak sama. Coba lagi ya.'), backgroundColor: Colors.red),
+        const SnackBar(
+          content: Text('Ups, PIN tidak sama. Coba lagi ya.'),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
@@ -48,25 +52,40 @@ class _PinConfirmationPageState extends State<PinConfirmationPage> {
     setState(() => _isLoading = true); // Mulai Loading
 
     // 2. KIRIM KE FIREBASE
+    // Pastikan _firebaseService.registerUser mengembalikan NULL jika sukses
+    // dan mengembalikan STRING (pesan error) jika gagal.
     String? error = await _firebaseService.registerUser(
       username: widget.username,
       pin: confirmPin,
+      avatarIndex: widget.avatarIndex,
     );
+
+    // DEBUGGING: Cek hasil di "Run" tab atau Console
+    print("Hasil Register: $error"); 
+
+    if (!mounted) return; // Cek apakah halaman masih aktif
 
     setState(() => _isLoading = false); // Stop Loading
 
-    // PERBAIKAN PENTING: Cek apakah halaman masih aktif sebelum pindah
-    if (!mounted) return;
-
     if (error == null) {
-      // BERHASIL -> Pindah ke Halaman Sukses
-      Navigator.push(
+      // --- BERHASIL ---
+      // Gunakan pushAndRemoveUntil agar user tidak bisa tombol "Back" ke halaman PIN lagi
+      Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (context) => const RegistrationSuccessPage()),
+        (route) => false, // Menghapus semua halaman sebelumnya dari stack
       );
     } else {
-      // GAGAL -> Tampilkan Pesan Error
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+      // --- GAGAL ---
+      // Tampilkan error yang sebenarnya terjadi
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Gagal Daftar: $error"), // Tampilkan pesan error spesifik
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating, // Biar lebih cantik (melayang)
+          margin: const EdgeInsets.all(20),
+        ),
+      );
     }
   }
 

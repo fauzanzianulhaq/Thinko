@@ -1,5 +1,8 @@
+import 'dart:async'; // Timer
+import 'dart:math';  // Random
 import 'package:flutter/material.dart';
-import '../region_2/level_7_page.dart'; // Pastikan import ini sesuai dengan struktur foldermu
+import 'package:flutter/scheduler.dart'; // Wajib untuk fix navigasi
+import '../region_2/level_7_page.dart'; // Menuju Region 2
 
 class Level6Page extends StatefulWidget {
   const Level6Page({super.key});
@@ -9,46 +12,214 @@ class Level6Page extends StatefulWidget {
 }
 
 class _Level6PageState extends State<Level6Page> {
-  // --- DATA SOAL LEVEL 6 ---
-  final String question = "30 + 25 - 10";
-  final int correctAnswer = 45;
-  final List<int> options = [40, 30, 45, 35];
+  // --- KONFIGURASI LEVEL 6 (BOSS REGION 1: GOLEM TANAH) ---
+  final int enemyAttackSpeedMs = 1500; // Serangan lambat (1.5 detik)
+  final int enemyDamage = 15;          // Damage SAKIT (15)
+  final double userDamage = 0.15;       // Boss tebal (Butuh 10x benar)
 
-  // --- STATUS GAME ---
+  // --- STATE GAME ---
   int userHealth = 100;
-  double bossHealth = 1.0;
+  double bossHealth = 1.0; 
+  Timer? _enemyAttackTimer;
+  bool _isStunned = false; 
+  bool isGameFinished = false;
 
-  // Logika Cek Jawaban
-  void checkAnswer(int selectedAnswer) {
-    if (selectedAnswer == correctAnswer) {
-      // JAWABAN BENAR
-      setState(() {
-        bossHealth -= 0.2; 
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Serangan Telak! Golem Es retak!"),
-          backgroundColor: Colors.green,
-          duration: Duration(milliseconds: 500),
-        ),
-      );
+  // --- DATA SOAL DINAMIS ---
+  String question = "";
+  int correctAnswer = 0;
+  List<int> options = [];
 
-      if (bossHealth <= 0.05) {
-        _showWinDialog();
+  @override
+  void initState() {
+    super.initState();
+    _generateQuestion(); 
+    _startEnemyAttack(); 
+  }
+
+  @override
+  void dispose() {
+    _enemyAttackTimer?.cancel(); 
+    super.dispose();
+  }
+
+  // --- LOGIKA MUSUH MENYERANG ---
+  void _startEnemyAttack() {
+    _enemyAttackTimer = Timer.periodic(Duration(milliseconds: enemyAttackSpeedMs), (timer) {
+      if (userHealth > 0 && bossHealth > 0.05 && !isGameFinished) {
+        setState(() {
+          userHealth -= enemyDamage;
+        });
+
+        if (userHealth <= 0) {
+          userHealth = 0;
+          timer.cancel();
+          _showGameOverDialog();
+        }
       }
+    });
+  }
+
+  // --- LOGIKA SOAL (Level 6: 5 Variasi Soal) ---
+  void _generateQuestion() {
+    Random random = Random();
+    // Sekarang ada 5 tipe soal (0-4)
+    int type = random.nextInt(5); 
+    int a, b, c;
+
+    if (type == 0) {
+      // Tipe 1: A + (B x C) -> Prioritas Kurung/Kali
+      a = random.nextInt(50) + 20; 
+      b = random.nextInt(10) + 2; 
+      c = random.nextInt(5) + 2;  
+      
+      question = "$a + ($b × $c)";
+      correctAnswer = a + (b * c);
+
+    } else if (type == 1) {
+      // Tipe 2: (A : B) + C -> Pembagian Kurung
+      b = random.nextInt(5) + 2;       // Pembagi
+      int hasil = random.nextInt(10) + 5; 
+      a = b * hasil;                   // A kelipatan B
+      c = random.nextInt(20) + 10;
+      
+      question = "($a : $b) + $c";
+      correctAnswer = (a ~/ b) + c;
+
+    } else if (type == 2) {
+      // Tipe 3: A x B - C -> Perkalian Besar
+      a = random.nextInt(10) + 5;
+      b = random.nextInt(6) + 3;
+      int hasilKali = a * b;
+      c = random.nextInt(hasilKali - 10) + 5; // Pastikan positif
+      
+      question = "$a × $b - $c";
+      correctAnswer = hasilKali - c;
+
+    } else if (type == 3) {
+      // Tipe 4 (BARU): A - B : C -> Prioritas Pembagian Tanpa Kurung
+      // Menjebak: Anak harus membagi B:C dulu, baru A dikurang hasilnya.
+      c = random.nextInt(4) + 2;       // Pembagi (2-5)
+      int hasilBagi = random.nextInt(8) + 3; // Hasil bagi (3-10)
+      b = c * hasilBagi;               // B adalah kelipatan C
+      a = b + random.nextInt(30) + 10; // A harus lebih besar dari B agar positif
+      
+      question = "$a - $b : $c";
+      correctAnswer = a - (b ~/ c);
+
     } else {
-      // JAWABAN SALAH
+      // Tipe 5 (BARU): A x (B + C) -> Angka Hasil Besar
+      a = random.nextInt(6) + 3;   // 3-8
+      b = random.nextInt(10) + 5;  // 5-14
+      c = random.nextInt(10) + 5;  // 5-14
+      
+      question = "$a × ($b + $c)";
+      correctAnswer = a * (b + c);
+    }
+
+    // Generate Opsi Jawaban (Cerdas: Opsinya berdekatan)
+    Set<int> optionsSet = {correctAnswer};
+    while (optionsSet.length < 4) {
+      // Offset acak antara 1 sampai 10
+      int offset = random.nextInt(10) + 1; 
+      // Kadang ditambah, kadang dikurang
+      optionsSet.add(random.nextBool() ? correctAnswer + offset : correctAnswer - offset);
+    }
+    options = optionsSet.toList()..shuffle();
+    
+    if (mounted) setState(() {});
+  }
+
+  // --- CEK JAWABAN ---
+  void checkAnswer(int selectedAnswer) {
+    if (isGameFinished || _isStunned) return; 
+
+    if (selectedAnswer == correctAnswer) {
+      // BENAR
       setState(() {
-        userHealth -= 15; 
+        bossHealth -= userDamage; 
       });
+      
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("Brrr! Dingin! Jawabanmu salah!"),
-          backgroundColor: Colors.red,
+          content: Text("Hantaman Keras! Armor Golem retak!"), 
+          backgroundColor: Colors.green,
+          duration: Duration(milliseconds: 300),
+        ),
+      );
+
+      // Cek Menang
+      if (bossHealth <= 0.05) {
+        setState(() {
+          bossHealth = 0;
+          isGameFinished = true;
+        });
+        _enemyAttackTimer?.cancel();
+
+        SchedulerBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _showWinDialog();
+        });
+      } else {
+        _generateQuestion(); 
+      }
+
+    } else {
+      // SALAH -> Kena Stun (Tertimbun Batu)
+      setState(() {
+        _isStunned = true; 
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Salah! Kamu tertimbun reruntuhan batu!"), 
+          backgroundColor: Colors.brown, 
           duration: Duration(milliseconds: 500),
         ),
       );
+
+      Future.delayed(const Duration(seconds: 3), () {
+        if (mounted) {
+          setState(() {
+            _isStunned = false; 
+            _generateQuestion(); 
+          });
+        }
+      });
     }
+  }
+
+  // --- GAME OVER ---
+  void _showGameOverDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text("Game Over! 🪨", style: TextStyle(color: Colors.brown)),
+        content: const Text("Golem Tanah terlalu kuat! Jangan menyerah!"),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.pop(context); 
+            },
+            child: const Text("Keluar"),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              setState(() {
+                userHealth = 100;
+                bossHealth = 1.0;
+                isGameFinished = false;
+                _isStunned = false;
+                _generateQuestion();
+                _startEnemyAttack();
+              });
+            },
+            child: const Text("Coba Lagi"),
+          )
+        ],
+      ),
+    );
   }
 
   // --- POPUP KEMENANGAN ---
@@ -64,7 +235,7 @@ class _Level6PageState extends State<Level6Page> {
             clipBehavior: Clip.none,
             alignment: Alignment.center,
             children: [
-              // KOTAK KONTEN
+              // 1. KOTAK KONTEN
               Container(
                 width: double.infinity,
                 margin: const EdgeInsets.only(top: 40),
@@ -84,22 +255,21 @@ class _Level6PageState extends State<Level6Page> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const Text(
-                      "STAGE SELESAI !",
+                      "REGION 1 SELESAI !",
                       style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 1.2),
                     ),
                     const SizedBox(height: 10),
                     const Divider(color: Colors.grey, thickness: 0.5),
                     const SizedBox(height: 10),
                     
-                    // Subtitle
                     const Text(
-                      "Luar biasa! Golem Es berhasil dicairkan!",
+                      "Selamat! Kamu telah menaklukkan Hutan Kuno!",
                       textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 14, color: Colors.black54),
                     ),
                     const SizedBox(height: 20),
 
-                    // Bintang & Skor
+                    // Bintang & Skor (Bonus Besar)
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       decoration: BoxDecoration(
@@ -111,7 +281,7 @@ class _Level6PageState extends State<Level6Page> {
                         children: [
                           Icon(Icons.stars_rounded, color: Colors.amber, size: 36),
                           SizedBox(width: 8),
-                          Text("5", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+                          Text("50", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
                         ],
                       ),
                     ),
@@ -122,11 +292,11 @@ class _Level6PageState extends State<Level6Page> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        // TOMBOL PETA
+                        // Tombol Peta
                         InkWell(
                           onTap: () {
-                            Navigator.pop(context); // 1. Tutup Dialog
-                            Navigator.pop(context); // 2. Tutup Level (Kembali ke Peta)
+                            Navigator.pop(context); // Tutup Dialog
+                            Navigator.pop(context); // Balik ke Peta
                           },
                           child: Column(
                             children: [
@@ -140,14 +310,10 @@ class _Level6PageState extends State<Level6Page> {
                             ],
                           ),
                         ),
-                        
-                        // TOMBOL STAGE BERIKUTNYA (Perbaikan di sini)
+                        // Tombol NEXT REGION (Ke Level 7)
                         InkWell(
                           onTap: () {
-                             Navigator.pop(context); // 1. Tutup Dialog saja
-                             
-                             // 2. Langsung Ganti Level 6 dengan Level 7
-                             // (JANGAN pakai Navigator.pop lagi di sini)
+                             Navigator.pop(context); 
                              Navigator.pushReplacement(
                                context, 
                                MaterialPageRoute(builder: (context) => const Level7Page())
@@ -157,11 +323,11 @@ class _Level6PageState extends State<Level6Page> {
                             children: [
                               Container(
                                 padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(color: Colors.green[50], shape: BoxShape.circle),
-                                child: Icon(Icons.skip_next_rounded, color: Colors.green[700], size: 30),
+                                decoration: BoxDecoration(color: Colors.orange[100], shape: BoxShape.circle),
+                                child: Icon(Icons.public, color: Colors.orange[800], size: 30), 
                               ),
                               const SizedBox(height: 4),
-                              const Text("Stage berikutnya", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                              const Text("Region Baru", style: TextStyle(fontSize: 12, color: Colors.grey)),
                             ],
                           ),
                         ),
@@ -171,7 +337,7 @@ class _Level6PageState extends State<Level6Page> {
                 ),
               ),
 
-              // KEPALA ROBOT
+              // 2. KEPALA ROBOT
               Positioned(
                 top: 0,
                 child: Container(
@@ -196,7 +362,7 @@ class _Level6PageState extends State<Level6Page> {
     return Scaffold(
       body: Stack(
         children: [
-          // 1. BACKGROUND BARU (ASET ES)
+          // BACKGROUND (Hutan)
           Container(
             decoration: const BoxDecoration(
               image: DecorationImage(
@@ -205,8 +371,7 @@ class _Level6PageState extends State<Level6Page> {
               ),
             ),
           ),
-
-          // 2. UI GAME
+          // UI GAME
           SafeArea(
             child: Column(
               children: [
@@ -224,7 +389,7 @@ class _Level6PageState extends State<Level6Page> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                         decoration: BoxDecoration(
-                          color: Colors.green,
+                          color: userHealth < 30 ? Colors.red : Colors.green,
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(color: Colors.white, width: 2),
                         ),
@@ -234,7 +399,8 @@ class _Level6PageState extends State<Level6Page> {
                         ),
                       ),
                       const Spacer(),
-                      // Boss HP Bar
+                      
+                      // BOSS HP BAR (Warna Abu Tua)
                       Expanded(
                         flex: 4,
                         child: Stack(
@@ -253,18 +419,18 @@ class _Level6PageState extends State<Level6Page> {
                               child: Container(
                                 height: 14,
                                 decoration: BoxDecoration(
-                                  color: Colors.redAccent,
+                                  color: Colors.grey[700], // Warna Batu
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                               ),
                             ),
-                            // Icon Boss Kecil (Golem Es)
                             const Positioned(
                               right: 0,
                               child: CircleAvatar(
                                 radius: 16,
                                 backgroundColor: Colors.white,
-                                backgroundImage: AssetImage('assets/images/monster_level_6.png'),
+                                // Pastikan aset monster level 6 benar
+                                backgroundImage: AssetImage('assets/images/monster_level_6.png'), 
                               ),
                             ),
                           ],
@@ -273,40 +439,52 @@ class _Level6PageState extends State<Level6Page> {
                     ],
                   ),
                 ),
-
                 const Spacer(),
+                
+                // VISUAL STUN
+                if (_isStunned)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 20),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.brown.withOpacity(0.9),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.white, width: 2),
+                    ),
+                    child: const Text("TERTIMBUN BATU! (STUNNED)", 
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  ),
 
-                // ARENA (Hero vs Golem Es)
+                // ARENA
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      // HERO
                       Flexible(
                         child: Image.asset(
                           'assets/images/mc.png',
                           height: 150,
                           fit: BoxFit.contain,
+                          // color: _isStunned ? Colors.brown[400] : null,
+                          // colorBlendMode: _isStunned ? BlendMode.modulate : null,
                         ),
                       ),
                       const SizedBox(width: 10),
-                      // MUSUH BARU (Golem Es)
                       Flexible(
                         child: Image.asset(
-                          'assets/images/monster_level_6.png', 
-                          height: 170, 
+                          'assets/images/monster_level_6.png', // Golem Tanah
+                          height: 200, 
                           fit: BoxFit.contain,
                         ),
                       ),
                     ],
                   ),
                 ),
-
                 const SizedBox(height: 20),
-
-                // SOAL
+                
+                // SOAL (Kotak Coklat)
                 Container(
                   margin: const EdgeInsets.symmetric(horizontal: 24),
                   padding: const EdgeInsets.symmetric(vertical: 16),
@@ -314,8 +492,9 @@ class _Level6PageState extends State<Level6Page> {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.brown[700]!, width: 2),
                     boxShadow: [
-                      BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, 5))
+                      BoxShadow(color: Colors.brown.withOpacity(0.3), blurRadius: 10, offset: Offset(0, 5))
                     ],
                   ),
                   child: Text(
@@ -324,10 +503,9 @@ class _Level6PageState extends State<Level6Page> {
                     style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.black87),
                   ),
                 ),
-
                 const SizedBox(height: 20),
-
-                // OPSI JAWABAN
+                
+                // OPSI
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
                   child: Row(
@@ -335,18 +513,21 @@ class _Level6PageState extends State<Level6Page> {
                     children: options.map((option) {
                       return GestureDetector(
                         onTap: () => checkAnswer(option),
-                        child: Container(
-                          width: 65,
-                          height: 65,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF0F0F0),
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 4))],
-                          ),
-                          child: Center(
-                            child: Text(
-                              "$option",
-                              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87),
+                        child: Opacity(
+                          opacity: _isStunned ? 0.5 : 1.0,
+                          child: Container(
+                            width: 65,
+                            height: 65,
+                            decoration: BoxDecoration(
+                              color: _isStunned ? Colors.brown[200] : const Color(0xFFF0F0F0),
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 4))],
+                            ),
+                            child: Center(
+                              child: Text(
+                                "$option",
+                                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87),
+                              ),
                             ),
                           ),
                         ),

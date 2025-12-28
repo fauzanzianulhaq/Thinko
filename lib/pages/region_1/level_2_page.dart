@@ -1,5 +1,7 @@
+import 'dart:async'; 
+import 'dart:math';  
 import 'package:flutter/material.dart';
-import 'level_3_page.dart';
+import 'level_3_page.dart'; // Pastikan file ini ada
 
 class Level2Page extends StatefulWidget {
   const Level2Page({super.key});
@@ -9,50 +11,182 @@ class Level2Page extends StatefulWidget {
 }
 
 class _Level2PageState extends State<Level2Page> {
-  // --- DATA SOAL LEVEL 2 ---
-  final String question = "10 + 5 - 2"; 
-  final int correctAnswer = 13;          
-  final List<int> options = [17, 14, 11, 13]; 
+  // --- KONFIGURASI LEVEL 2 (LEBIH SULIT DARI LEVEL 1) ---
+  final int enemyAttackSpeedMs = 1500; // Musuh nyerang tiap 1.5 detik (Lebih cepat dari Lvl 1)
+  final int enemyDamage = 4;           // Damage musuh lebih sakit
+  final double userDamage = 0.2;       // Damage user 20% (Butuh 5x benar)
 
-  // --- STATUS GAME ---
+  // --- STATE GAME ---
   int userHealth = 100;
   double bossHealth = 1.0; 
+  Timer? _enemyAttackTimer;
+  bool _isStunned = false; 
 
-  // Logika Cek Jawaban
+  // --- DATA SOAL DINAMIS ---
+  String question = "";
+  int correctAnswer = 0;
+  List<int> options = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _generateQuestion(); 
+    _startEnemyAttack(); 
+  }
+
+  @override
+  void dispose() {
+    _enemyAttackTimer?.cancel(); 
+    super.dispose();
+  }
+
+  // --- LOGIKA MUSUH MENYERANG ---
+  void _startEnemyAttack() {
+    _enemyAttackTimer = Timer.periodic(Duration(milliseconds: enemyAttackSpeedMs), (timer) {
+      if (userHealth > 0 && bossHealth > 0.05) {
+        setState(() {
+          userHealth -= enemyDamage;
+        });
+
+        if (userHealth <= 0) {
+          userHealth = 0;
+          timer.cancel();
+          _showGameOverDialog();
+        }
+      }
+    });
+  }
+
+  // --- LOGIKA SOAL (Level 2: Angka 20-50, Perkalian Dasar) ---
+  void _generateQuestion() {
+    Random random = Random();
+    int operator = random.nextInt(4); 
+    int a, b;
+
+    switch (operator) {
+      case 0: // Penjumlahan (Angka 10-30)
+        a = random.nextInt(20) + 10; 
+        b = random.nextInt(20) + 10;
+        question = "$a + $b";
+        correctAnswer = a + b;
+        break;
+      case 1: // Pengurangan (Angka 20-50)
+        a = random.nextInt(30) + 20;
+        b = random.nextInt(15) + 5; 
+        question = "$a - $b";
+        correctAnswer = a - b;
+        break;
+      case 2: // Perkalian (Angka 2-9) - Mulai dikenalkan
+        a = random.nextInt(8) + 2;
+        b = random.nextInt(5) + 2;
+        question = "$a × $b";
+        correctAnswer = a * b;
+        break;
+      case 3: // Pembagian (Hasil bulat 2-9)
+        b = random.nextInt(5) + 2; 
+        int result = random.nextInt(8) + 2; 
+        a = b * result; 
+        question = "$a : $b";
+        correctAnswer = result;
+        break;
+      default:
+        a = 1; b = 1; question = "1+1"; correctAnswer = 2;
+    }
+
+    Set<int> optionsSet = {correctAnswer};
+    while (optionsSet.length < 4) {
+      int offset = random.nextInt(5) + 1; // Pengecoh lebih variatif
+      optionsSet.add(random.nextBool() ? correctAnswer + offset : correctAnswer - offset);
+    }
+    options = optionsSet.toList()..shuffle();
+    
+    if (mounted) setState(() {});
+  }
+
+  // --- CEK JAWABAN ---
   void checkAnswer(int selectedAnswer) {
+    if (_isStunned) return; 
+
     if (selectedAnswer == correctAnswer) {
-      // JAWABAN BENAR
       setState(() {
-        bossHealth -= 0.2; 
+        bossHealth -= userDamage; 
       });
+      
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("Hiaat! Serangan Jamur kena!"), 
+          content: Text("Serangan Telak!"), 
           backgroundColor: Colors.green,
-          duration: Duration(milliseconds: 500),
+          duration: Duration(milliseconds: 300),
         ),
       );
 
       if (bossHealth <= 0.05) { 
+        bossHealth = 0;
+        _enemyAttackTimer?.cancel();
         _showWinDialog();
+      } else {
+        _generateQuestion(); 
       }
 
     } else {
-      // JAWABAN SALAH
       setState(() {
-        userHealth -= 10;
+        _isStunned = true; 
       });
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("Aduh! Hitung yang teliti!"), 
+          content: Text("Salah! Terkena Stun!"), 
           backgroundColor: Colors.red,
-          duration: Duration(milliseconds: 500),
+          duration: Duration(milliseconds: 1000),
         ),
       );
+
+      Future.delayed(const Duration(seconds: 3), () {
+        if (mounted) {
+          setState(() {
+            _isStunned = false; 
+            _generateQuestion(); 
+          });
+        }
+      });
     }
   }
 
-  // --- POPUP KEMENANGAN (DESAIN BARU - SAMA DENGAN LEVEL 1) ---
+  // --- GAME OVER DIALOG ---
+  void _showGameOverDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text("Game Over! 💀", style: TextStyle(color: Colors.red)),
+        content: const Text("Monster Level 2 terlalu kuat! Coba lagi!"),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.pop(context); 
+            },
+            child: const Text("Keluar"),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              setState(() {
+                userHealth = 100;
+                bossHealth = 1.0;
+                _isStunned = false;
+                _generateQuestion();
+                _startEnemyAttack();
+              });
+            },
+            child: const Text("Coba Lagi"),
+          )
+        ],
+      ),
+    );
+  }
+
+  // --- WIN DIALOG ---
   void _showWinDialog() {
     showDialog(
       context: context,
@@ -65,94 +199,56 @@ class _Level2PageState extends State<Level2Page> {
             clipBehavior: Clip.none, 
             alignment: Alignment.center,
             children: [
-              // 1. KOTAK KONTEN PUTIH
+              // KOTAK KONTEN
               Container(
                 width: double.infinity,
                 margin: const EdgeInsets.only(top: 40), 
-                padding: const EdgeInsets.fromLTRB(20, 50, 20, 20), 
+                padding: const EdgeInsets.fromLTRB(20, 50, 20, 20),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
-                      blurRadius: 10,
-                      offset: const Offset(0, 5),
-                    ),
+                    BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 10, offset: const Offset(0, 5)),
                   ],
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min, 
                   children: [
-                    // JUDUL
                     const Text(
-                      "STAGE SELESAI !",
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
-                        letterSpacing: 1.2,
-                      ),
+                      "LEVEL 2 SELESAI!",
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 1.2),
                     ),
                     const SizedBox(height: 10),
                     const Divider(color: Colors.grey, thickness: 0.5),
                     const SizedBox(height: 10),
-                    
-                    // SUBTITLE
-                    const Text(
-                      "Hebat! Kamu mengalahkan Monster Jamur!",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.black54,
-                      ),
-                    ),
+                    const Text("Luar biasa! Kamu semakin hebat!", textAlign: TextAlign.center, style: TextStyle(fontSize: 14, color: Colors.black54)),
                     const SizedBox(height: 20),
-
-                    // BINTANG & SKOR
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.amber.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(30),
-                      ),
+                      decoration: BoxDecoration(color: Colors.amber.withOpacity(0.1), borderRadius: BorderRadius.circular(30)),
                       child: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.stars_rounded, color: Colors.amber, size: 36), 
+                          Icon(Icons.stars_rounded, color: Colors.amber, size: 36),
                           SizedBox(width: 8),
-                          Text(
-                            "5",
-                            style: TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black87,
-                            ),
-                          ),
+                          Text("10", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)), // Skor beda
                         ],
                       ),
                     ),
-
                     const SizedBox(height: 30),
-
-                    // TOMBOL NAVIGASI
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        // TOMBOL PETA
                         InkWell(
                           onTap: () {
-                            Navigator.pop(context); // Tutup Dialog
-                            Navigator.pop(context); // Kembali ke Home Page
+                            Navigator.pop(context); 
+                            Navigator.pop(context); 
                           },
                           child: Column(
                             children: [
                               Container(
                                 padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color: Colors.green[50], 
-                                  shape: BoxShape.circle,
-                                ),
+                                decoration: BoxDecoration(color: Colors.green[50], shape: BoxShape.circle),
                                 child: Icon(Icons.list_alt_rounded, color: Colors.green[700], size: 30),
                               ),
                               const SizedBox(height: 4),
@@ -160,30 +256,21 @@ class _Level2PageState extends State<Level2Page> {
                             ],
                           ),
                         ),
-
-                        // TOMBOL STAGE BERIKUTNYA
                         InkWell(
                           onTap: () {
-                            // Karena Level 3 belum ada, kita kasih pesan dulu dan balik ke peta
-                            Navigator.pop(context); // Tutup dialog
-                            Navigator.pop(context); // Balik ke peta
+                            Navigator.pop(context); 
+                            // Pindah ke Level 3
                             Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const Level3Page()));
-                            
-                            // Nanti kalau Level 3 sudah ada, ganti kode di atas dengan:
-                            // Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const Level3Page()));
                           },
                           child: Column(
                             children: [
                               Container(
                                 padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color: Colors.green[50],
-                                  shape: BoxShape.circle,
-                                ),
+                                decoration: BoxDecoration(color: Colors.green[50], shape: BoxShape.circle),
                                 child: Icon(Icons.skip_next_rounded, color: Colors.green[700], size: 30),
                               ),
                               const SizedBox(height: 4),
-                              const Text("Stage berikutnya", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                              const Text("Level 3", style: TextStyle(fontSize: 12, color: Colors.grey)),
                             ],
                           ),
                         ),
@@ -192,17 +279,13 @@ class _Level2PageState extends State<Level2Page> {
                   ],
                 ),
               ),
-
-              // 2. KEPALA ROBOT
+              // KEPALA ROBOT
               Positioned(
                 top: 0, 
                 child: Container(
                   padding: const EdgeInsets.all(4),
-                  decoration: const BoxDecoration(
-                    color: Colors.white, 
-                    shape: BoxShape.circle,
-                  ),
-                  child: CircleAvatar(
+                  decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                  child: const CircleAvatar(
                     radius: 35, 
                     backgroundColor: Colors.white,
                     backgroundImage: AssetImage('assets/images/logo_thinko.png'), 
@@ -221,7 +304,7 @@ class _Level2PageState extends State<Level2Page> {
     return Scaffold(
       body: Stack(
         children: [
-          // 1. BACKGROUND
+          // 1. BACKGROUND (Bisa ganti gambar hutan yang lebih gelap/sore jika ada)
           Container(
             decoration: const BoxDecoration(
               image: DecorationImage(
@@ -231,11 +314,11 @@ class _Level2PageState extends State<Level2Page> {
             ),
           ),
 
-          // 2. UI GAME
+          // 2. UI UTAMA
           SafeArea(
             child: Column(
               children: [
-                // HEADER HP
+                // HEADER
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   child: Row(
@@ -246,10 +329,11 @@ class _Level2PageState extends State<Level2Page> {
                         backgroundColor: Colors.white,
                       ),
                       const SizedBox(width: 8),
+                      // HP User
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                         decoration: BoxDecoration(
-                          color: Colors.green,
+                          color: userHealth < 30 ? Colors.red : Colors.green,
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(color: Colors.white, width: 2),
                         ),
@@ -274,22 +358,22 @@ class _Level2PageState extends State<Level2Page> {
                               ),
                             ),
                             FractionallySizedBox(
-                              widthFactor: bossHealth > 0 ? bossHealth : 0,
+                              widthFactor: bossHealth > 0 ? bossHealth : 0, 
                               child: Container(
                                 height: 14,
                                 decoration: BoxDecoration(
-                                  color: Colors.redAccent,
+                                  color: Colors.orangeAccent, // Warna bar boss level 2 beda (Orange)
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                               ),
                             ),
-                            // Icon Boss Kecil (Jamur)
                             const Positioned(
                               right: 0,
                               child: CircleAvatar(
                                 radius: 16,
                                 backgroundColor: Colors.white,
-                                backgroundImage: AssetImage('assets/images/monster_level_2.png'),
+                                // Ganti dengan gambar monster level 2
+                                backgroundImage: AssetImage('assets/images/monster_level_2.png'), 
                               ),
                             ),
                           ],
@@ -301,29 +385,42 @@ class _Level2PageState extends State<Level2Page> {
 
                 const Spacer(),
 
-                // ARENA (Hero vs Jamur)
+                // STUN ALERT
+                if (_isStunned)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 20),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.7),
+                      borderRadius: BorderRadius.circular(20)
+                    ),
+                    child: const Text("TERSTUN! TUNGGU SEBENTAR...", 
+                      style: TextStyle(color: Colors.yellow, fontWeight: FontWeight.bold)),
+                  ),
+
+                // ARENA KARAKTER
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     crossAxisAlignment: CrossAxisAlignment.end, 
                     children: [
-                      // HERO
                       Flexible(
                         child: Image.asset(
                           'assets/images/mc.png',
-                          height: 150,
-                          fit: BoxFit.contain,
+                          height: 150, 
+                          fit: BoxFit.contain, 
+                          // color: _isStunned ? Colors.grey : null,
+                          // colorBlendMode: _isStunned ? BlendMode.saturation : null,
                         ),
                       ),
-                      
-                      const SizedBox(width: 10),
-
-                      // MUSUH (Jamur)
+                      const SizedBox(width: 10), 
+                      // MUSUH LEVEL 2
                       Flexible(
                         child: Image.asset(
+                          // Pastikan aset ini ada
                           'assets/images/monster_level_2.png', 
-                          height: 160, 
+                          height: 190, // Boss level 2 mungkin lebih besar
                           fit: BoxFit.contain,
                         ),
                       ),
@@ -342,21 +439,13 @@ class _Level2PageState extends State<Level2Page> {
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
-                        blurRadius: 10,
-                        offset: const Offset(0, 5),
-                      ),
+                      BoxShadow(color: Colors.black26, blurRadius: 10, offset: const Offset(0, 5)),
                     ],
                   ),
                   child: Text(
                     question, 
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
+                    style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.black87),
                   ),
                 ),
 
@@ -370,27 +459,20 @@ class _Level2PageState extends State<Level2Page> {
                     children: options.map((option) {
                       return GestureDetector(
                         onTap: () => checkAnswer(option),
-                        child: Container(
-                          width: 65,
-                          height: 65,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF0F0F0),
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
-                                blurRadius: 4,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: Center(
-                            child: Text(
-                              "$option",
-                              style: const TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black87,
+                        child: Opacity(
+                          opacity: _isStunned ? 0.5 : 1.0, 
+                          child: Container(
+                            width: 65,
+                            height: 65,
+                            decoration: BoxDecoration(
+                              color: _isStunned ? Colors.grey[400] : const Color(0xFFF0F0F0),
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: const Offset(0, 4))],
+                            ),
+                            child: Center(
+                              child: Text(
+                                "$option",
+                                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87),
                               ),
                             ),
                           ),
@@ -399,6 +481,7 @@ class _Level2PageState extends State<Level2Page> {
                     }).toList(),
                   ),
                 ),
+                
                 const SizedBox(height: 20),
               ],
             ),

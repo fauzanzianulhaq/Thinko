@@ -36,6 +36,13 @@ class _HomePageState extends State<HomePage> {
     const Offset(210, 500), // Posisi Level 4
     const Offset(110, 620), // Posisi Level 5
     const Offset(160, 750), // Posisi Level 6
+    const Offset(250, 900), // Posisi Level 7
+    const Offset(80, 1050), // Posisi Level 8
+    const Offset(200, 1200),// Posisi Level 9
+    const Offset(130, 1350),// Posisi Level 10
+    const Offset(220, 1500),// Posisi Level 11
+    const Offset(100, 1650),// Posisi Level 12
+    const Offset(180, 1800),// Posisi Level 13
   ];
 
   @override

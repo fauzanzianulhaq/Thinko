@@ -1,5 +1,8 @@
+import 'dart:async'; // Timer
+import 'dart:math';  // Random
 import 'package:flutter/material.dart';
-//import 'level_14_page.dart'; // Pastikan file ini ada untuk level selanjutnya
+import 'package:flutter/scheduler.dart'; // Wajib untuk fix navigasi
+// import 'level_14_page.dart'; // Uncomment jika sudah masuk Region 3
 
 class Level13Page extends StatefulWidget {
   const Level13Page({super.key});
@@ -9,50 +12,215 @@ class Level13Page extends StatefulWidget {
 }
 
 class _Level13PageState extends State<Level13Page> {
-  // --- DATA SOAL LEVEL 13 ---
-  final String question = "5 + 6";
-  final int correctAnswer = 11;
-  final List<int> options = [9, 6, 11, 10]; 
+  // --- KONFIGURASI LEVEL 13 (BOSS REGION 2: ANCIENT SPHINX) ---
+  // Difficulty: VERY HARD
+  final int enemyAttackSpeedMs = 1500; // Serangan lambat (1.5 detik) tapi...
+  final int enemyDamage = 15;          // DAMAGENYA SAKIT (Sekali kena -15 HP)
+  final double userDamage = 0.08;      // Boss SANGAT TEBAL (Butuh ~13x benar)
+  
+  // HP Karakter DIBATASI (Maksimal 50) - HARD MODE
+  final int maxUserHealth = 50; 
 
-  // --- STATUS GAME ---
-  int userHealth = 100;
-  double bossHealth = 1.0; // 1.0 artinya 100% penuh
+  // --- STATE GAME ---
+  late int userHealth; 
+  double bossHealth = 1.0; 
+  Timer? _enemyAttackTimer;
+  bool _isStunned = false; 
+  bool isGameFinished = false;
 
-  // Logika Cek Jawaban
+  // --- DATA SOAL DINAMIS ---
+  String question = "";
+  int correctAnswer = 0;
+  List<int> options = [];
+
+  @override
+  void initState() {
+    super.initState();
+    userHealth = maxUserHealth; // Set HP awal ke 50 (Tantangan Boss)
+    _generateQuestion(); 
+    _startEnemyAttack(); 
+  }
+
+  @override
+  void dispose() {
+    _enemyAttackTimer?.cancel(); 
+    super.dispose();
+  }
+
+  // --- LOGIKA MUSUH MENYERANG ---
+  void _startEnemyAttack() {
+    _enemyAttackTimer = Timer.periodic(Duration(milliseconds: enemyAttackSpeedMs), (timer) {
+      if (userHealth > 0 && bossHealth > 0.05 && !isGameFinished) {
+        setState(() {
+          userHealth -= enemyDamage;
+        });
+
+        if (userHealth <= 0) {
+          userHealth = 0;
+          timer.cancel();
+          _showGameOverDialog();
+        }
+      }
+    });
+  }
+
+  // --- LOGIKA SOAL (Level 13: UJIAN AKHIR - SOAL SPHINX) ---
+  // Soal kompleks dengan 3-4 angka dan operasi campuran
+  void _generateQuestion() {
+    Random random = Random();
+    int type = random.nextInt(3); // 3 Variasi Soal Boss
+    int a, b, c, d;
+
+    if (type == 0) {
+      // Variasi 1: Perkalian, Tambah, Kurang (Prioritas Perkalian)
+      // A x B + C - D
+      a = random.nextInt(8) + 3;   // 3-10
+      b = random.nextInt(8) + 3;   // 3-10
+      c = random.nextInt(20) + 10; // 10-29
+      d = random.nextInt(15) + 5;  // 5-19
+      
+      question = "$a × $b + $c - $d";
+      correctAnswer = (a * b) + c - d;
+
+    } else if (type == 1) {
+      // Variasi 2: Pembagian lalu Pengurangan (Hati-hati)
+      // (A : B) - C
+      b = random.nextInt(6) + 3;        // Pembagi 3-8
+      int hasilBagi = random.nextInt(15) + 10; // Hasil bagi besar (10-24)
+      a = b * hasilBagi;                // A kelipatan B (30-192)
+      c = random.nextInt(hasilBagi - 5) + 1; // Pengurang < Hasil Bagi
+      
+      question = "$a : $b - $c";
+      correctAnswer = (a ~/ b) - c;
+
+    } else {
+      // Variasi 3: Pengurangan Beruntun & Penjumlahan (Butuh Fokus)
+      // A - B + C - D
+      a = random.nextInt(50) + 50; // Angka awal besar (50-99)
+      b = random.nextInt(20) + 10; 
+      c = random.nextInt(20) + 10;
+      d = random.nextInt(20) + 5;
+      
+      question = "$a - $b + $c - $d";
+      correctAnswer = a - b + c - d;
+    }
+
+    // Generate Opsi Jawaban (Opsinya SANGAT MENJEBAK - Berdekatan)
+    Set<int> optionsSet = {correctAnswer};
+    while (optionsSet.length < 4) {
+      // Offset sangat kecil (1-3) agar jawaban mirip-mirip dan membingungkan
+      int offset = random.nextInt(3) + 1; 
+      optionsSet.add(random.nextBool() ? correctAnswer + offset : correctAnswer - offset);
+    }
+    options = optionsSet.toList()..shuffle();
+    
+    if (mounted) setState(() {});
+  }
+
+  // --- CEK JAWABAN ---
   void checkAnswer(int selectedAnswer) {
+    if (isGameFinished || _isStunned) return; 
+
     if (selectedAnswer == correctAnswer) {
-      // JAWABAN BENAR
+      // BENAR
       setState(() {
-        bossHealth -= 0.2; 
+        bossHealth -= userDamage; 
       });
+      
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("Serangan Berhasil! Monster Gurun melemah!"), 
+          content: Text("TEPAT! Sphinx meraung kesakitan!"), 
           backgroundColor: Colors.green,
-          duration: Duration(milliseconds: 500),
+          duration: Duration(milliseconds: 300),
         ),
       );
 
-      if (bossHealth <= 0.05) { 
-        _showWinDialog();
+      // Cek Menang
+      if (bossHealth <= 0.05) {
+        setState(() {
+          bossHealth = 0;
+          isGameFinished = true;
+        });
+        _enemyAttackTimer?.cancel();
+
+        SchedulerBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _showWinDialog();
+        });
+      } else {
+        _generateQuestion(); 
       }
 
     } else {
-      // JAWABAN SALAH
+      // SALAH -> Kena Stun + Hukuman HP (HARD MODE)
       setState(() {
-        userHealth -= 10;
+        _isStunned = true; 
+        // Hukuman HP berkurang juga kalau salah jawab!
+        userHealth -= 5;
+        if (userHealth < 0) userHealth = 0;
       });
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("Aduh! Panas! Jawaban salah!"), 
-          backgroundColor: Colors.red,
+          content: Text("SALAH! Kamu membatu! (-5 HP)"), 
+          backgroundColor: Colors.grey, // Warna Batu
           duration: Duration(milliseconds: 500),
         ),
       );
+
+      // Cek Mati karena salah jawab
+      if (userHealth <= 0) {
+         _enemyAttackTimer?.cancel();
+         _showGameOverDialog();
+         return;
+      }
+
+      Future.delayed(const Duration(seconds: 3), () {
+        if (mounted) {
+          setState(() {
+            _isStunned = false; 
+            _generateQuestion(); 
+          });
+        }
+      });
     }
   }
 
-  // --- POPUP KEMENANGAN (Sama seperti Level 6) ---
+  // --- GAME OVER ---
+  void _showGameOverDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text("Game Over! 🗿", style: TextStyle(color: Colors.grey)),
+        content: const Text("Sphinx telah menjadikanmu patung pasir selamanya..."),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.pop(context); 
+            },
+            child: const Text("Keluar"),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              setState(() {
+                userHealth = maxUserHealth; // Reset ke 50
+                bossHealth = 1.0;
+                isGameFinished = false;
+                _isStunned = false;
+                _generateQuestion();
+                _startEnemyAttack();
+              });
+            },
+            child: const Text("Coba Lagi"),
+          )
+        ],
+      ),
+    );
+  }
+
+  // --- POPUP KEMENANGAN ---
   void _showWinDialog() {
     showDialog(
       context: context,
@@ -65,7 +233,7 @@ class _Level13PageState extends State<Level13Page> {
             clipBehavior: Clip.none,
             alignment: Alignment.center,
             children: [
-              // KOTAK KONTEN
+              // 1. KOTAK KONTEN
               Container(
                 width: double.infinity,
                 margin: const EdgeInsets.only(top: 40),
@@ -85,22 +253,21 @@ class _Level13PageState extends State<Level13Page> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const Text(
-                      "STAGE SELESAI !",
+                      "REGION 2 SELESAI !",
                       style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 1.2),
                     ),
                     const SizedBox(height: 10),
                     const Divider(color: Colors.grey, thickness: 0.5),
                     const SizedBox(height: 10),
                     
-                    // Subtitle
                     const Text(
-                      "Hebat! Monster Gurun berhasil dikalahkan!",
+                      "Luar Biasa! Sphinx Kuno tunduk padamu!",
                       textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 14, color: Colors.black54),
                     ),
                     const SizedBox(height: 20),
 
-                    // Bintang & Skor
+                    // Bintang & Skor (Bonus Besar Boss)
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       decoration: BoxDecoration(
@@ -112,7 +279,7 @@ class _Level13PageState extends State<Level13Page> {
                         children: [
                           Icon(Icons.stars_rounded, color: Colors.amber, size: 36),
                           SizedBox(width: 8),
-                          Text("5", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+                          Text("100", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
                         ],
                       ),
                     ),
@@ -123,11 +290,11 @@ class _Level13PageState extends State<Level13Page> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        // TOMBOL PETA
+                        // Tombol Peta
                         InkWell(
                           onTap: () {
-                            Navigator.pop(context); // 1. Tutup Dialog
-                            Navigator.pop(context); // 2. Tutup Level (Kembali ke Peta)
+                            Navigator.pop(context); // Tutup Dialog
+                            Navigator.pop(context); // Balik ke Peta
                           },
                           child: Column(
                             children: [
@@ -141,27 +308,25 @@ class _Level13PageState extends State<Level13Page> {
                             ],
                           ),
                         ),
-                        
-                        // TOMBOL STAGE BERIKUTNYA (Ke Level 8)
+                        // Tombol NEXT REGION (Region 3)
                         InkWell(
                           onTap: () {
-                             Navigator.pop(context); // 1. Tutup Dialog saja
-                             
-                              
-                            //  Navigator.pushReplacement(
-                            //    context, 
-                            //    MaterialPageRoute(builder: (context) => const Level14Page())
-                            //  );
+                             Navigator.pop(context); 
+                             // Uncomment jika sudah ada Region 3
+                             // Navigator.pushReplacement(
+                             //   context, 
+                             //   MaterialPageRoute(builder: (context) => const Level14Page())
+                             // );
                           },
                           child: Column(
                             children: [
                               Container(
                                 padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(color: Colors.green[50], shape: BoxShape.circle),
-                                child: Icon(Icons.skip_next_rounded, color: Colors.green[700], size: 30),
+                                decoration: BoxDecoration(color: Colors.blue[100], shape: BoxShape.circle),
+                                child: Icon(Icons.public, color: Colors.blue[800], size: 30), // Icon Globe Baru
                               ),
                               const SizedBox(height: 4),
-                              const Text("Stage berikutnya", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                              const Text("Region Baru", style: TextStyle(fontSize: 12, color: Colors.grey)),
                             ],
                           ),
                         ),
@@ -171,7 +336,7 @@ class _Level13PageState extends State<Level13Page> {
                 ),
               ),
 
-              // KEPALA ROBOT (LOGO THINKO)
+              // 2. KEPALA ROBOT
               Positioned(
                 top: 0,
                 child: Container(
@@ -196,7 +361,7 @@ class _Level13PageState extends State<Level13Page> {
     return Scaffold(
       body: Stack(
         children: [
-          // 1. BACKGROUND (Gurun - Level 7)
+          // 1. BACKGROUND (Gurun - Region 2)
           Container(
             decoration: const BoxDecoration(
               image: DecorationImage(
@@ -206,7 +371,7 @@ class _Level13PageState extends State<Level13Page> {
             ),
           ),
 
-          // 2. TAMPILAN UI (Safe Area)
+          // 2. TAMPILAN UI
           SafeArea(
             child: Column(
               children: [
@@ -215,23 +380,22 @@ class _Level13PageState extends State<Level13Page> {
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   child: Row(
                     children: [
-                      // Avatar User
                       const CircleAvatar(
                         radius: 24,
                         backgroundImage: AssetImage('assets/images/mc.png'),
                         backgroundColor: Colors.white,
                       ),
                       const SizedBox(width: 8),
-                      // HP User Badge
+                      // HP User Badge (MERAH KARENA HP MAKS CUMA 50)
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                         decoration: BoxDecoration(
-                          color: Colors.green,
+                          color: Colors.red[700], // Merah tanda bahaya
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(color: Colors.white, width: 2),
                         ),
                         child: Text(
-                          "$userHealth",
+                          "$userHealth / $maxUserHealth", // Tampilkan per 50
                           style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
                         ),
                       ),
@@ -244,7 +408,6 @@ class _Level13PageState extends State<Level13Page> {
                         child: Stack(
                           alignment: Alignment.centerRight,
                           children: [
-                            // Background Bar Putih
                             Container(
                               height: 14,
                               decoration: BoxDecoration(
@@ -253,23 +416,24 @@ class _Level13PageState extends State<Level13Page> {
                                 border: Border.all(color: Colors.black54),
                               ),
                             ),
-                            // Isi Darah (Ungu Khas Boss Level 7)
+                            // Isi Darah (Emas Gelap - Sphinx)
                             FractionallySizedBox(
                               widthFactor: bossHealth > 0 ? bossHealth : 0, 
                               child: Container(
                                 height: 14,
                                 decoration: BoxDecoration(
-                                  color: Colors.redAccent, // Tetap ungu agar beda dengan level lain
+                                  color: Colors.amber[900], // Warna Emas Tua
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                               ),
                             ),
-                            // Icon Boss Kecil
+                            // Icon Boss Besar
                             const Positioned(
                               right: 0,
                               child: CircleAvatar(
-                                radius: 16,
+                                radius: 20, // Agak besar karena Boss
                                 backgroundColor: Colors.white,
+                                // Pastikan ini path ke gambar Sphinx
                                 backgroundImage: AssetImage('assets/region_2/monster_lvl_13.png'),
                               ),
                             ),
@@ -281,6 +445,20 @@ class _Level13PageState extends State<Level13Page> {
                 ),
 
                 const Spacer(),
+
+                // VISUAL STUN (Efek Membatu)
+                if (_isStunned)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 20),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.withOpacity(0.9), // Warna Batu
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.white, width: 2),
+                    ),
+                    child: const Text("TUBUHMU MEMBATU! (STUNNED)", 
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  ),
 
                 // --- ARENA KARAKTER ---
                 Padding(
@@ -295,16 +473,18 @@ class _Level13PageState extends State<Level13Page> {
                           'assets/images/mc.png',
                           height: 150, 
                           fit: BoxFit.contain, 
+                          color: _isStunned ? Colors.grey : null, // Jadi abu-abu batu
+                          colorBlendMode: _isStunned ? BlendMode.saturation : null,
                         ),
                       ),
                       
                       const SizedBox(width: 10), 
 
-                      // MUSUH (Kanan)
+                      // BOSS SPHINX (Kanan)
                       Flexible(
                         child: Image.asset(
-                          'assets/region_2/monster_lvl_13.png',
-                          height: 180, 
+                          'assets/region_2/monster_lvl_13.png', 
+                          height: 220, // Boss SANGAT BESAR
                           fit: BoxFit.contain,
                         ),
                       ),
@@ -314,7 +494,7 @@ class _Level13PageState extends State<Level13Page> {
 
                 const SizedBox(height: 20),
 
-                // --- KOTAK SOAL ---
+                // --- KOTAK SOAL (Emas Mewah) ---
                 Container(
                   margin: const EdgeInsets.symmetric(horizontal: 24),
                   padding: const EdgeInsets.symmetric(vertical: 16),
@@ -322,13 +502,13 @@ class _Level13PageState extends State<Level13Page> {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
-                    // Shadow disamakan dengan Level 6
+                    border: Border.all(color: Colors.amber[900]!, width: 3), // Border Emas Tebal
                     boxShadow: [
-                      BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, 5))
+                      BoxShadow(color: Colors.amber.withOpacity(0.3), blurRadius: 15, offset: const Offset(0, 5))
                     ],
                   ),
                   child: Text(
-                    question, // "5 + 6"
+                    question, 
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       fontSize: 32,
@@ -348,23 +528,26 @@ class _Level13PageState extends State<Level13Page> {
                     children: options.map((option) {
                       return GestureDetector(
                         onTap: () => checkAnswer(option),
-                        child: Container(
-                          width: 65,
-                          height: 65,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF0F0F0),
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: [
-                              BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 4))
-                            ],
-                          ),
-                          child: Center(
-                            child: Text(
-                              "$option",
-                              style: const TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black87,
+                        child: Opacity(
+                          opacity: _isStunned ? 0.5 : 1.0,
+                          child: Container(
+                            width: 65,
+                            height: 65,
+                            decoration: BoxDecoration(
+                              color: _isStunned ? Colors.grey[400] : const Color(0xFFF0F0F0),
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(color: Colors.black12, blurRadius: 4, offset: const Offset(0, 4))
+                              ],
+                            ),
+                            child: Center(
+                              child: Text(
+                                "$option",
+                                style: const TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black87,
+                                ),
                               ),
                             ),
                           ),

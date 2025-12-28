@@ -9,33 +9,36 @@ class FirebaseService {
   Future<String?> registerUser({
     required String username,
     required String pin,
+    required int avatarIndex, // <--- TAMBAHAN: Biar avatar yang dipilih tersimpan
   }) async {
     try {
-      // 1. Buat Email Palsu dari Username (karena Firebase butuh email)
+      // 1. Buat Email Palsu dari Username
       String email = "$username@mathadventure.com".replaceAll(" ", ""); // Hapus spasi
 
       // 2. Buat Akun di Firebase Auth
       UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
         email: email,
-        password: pin + "00", // Tambah '00' karena password minimal 6 karakter (PIN cuma 4)
+        password: pin + "00", // Logika passwordmu (PIN + 00)
       );
 
-      // 3. Simpan Data Level & Koin ke Firestore Database
+      // 3. Simpan Data Lengkap ke Firestore Database
+      // Kita pakai UID dari Auth agar aman (sesuai Rules Opsi 2)
       await _db.collection('users').doc(userCredential.user!.uid).set({
         'username': username,
         'pin': pin,
+        'avatar_index': avatarIndex, // <--- Disimpan di sini
         'level': 1,       // Level awal
         'coins': 0,       // Koin awal
-        'health': 100,
-        'created_at': DateTime.now(),
+        'health': 100,    // Darah awal
+        'created_at': FieldValue.serverTimestamp(), // Pakai waktu server biar akurat
       });
 
-      return null; // Berhasil (tidak ada error)
+      return null; // Berhasil (return null)
     } on FirebaseAuthException catch (e) {
       if (e.code == 'email-already-in-use') {
-        return "Username sudah dipakai!";
+        return "Username ini sudah dipakai orang lain!";
       } else if (e.code == 'weak-password') {
-        return "PIN terlalu lemah";
+        return "PIN terlalu lemah.";
       }
       return e.message;
     } catch (e) {
@@ -58,12 +61,18 @@ class FirebaseService {
       );
       
       return null; // Berhasil
+    } on FirebaseAuthException catch (e) {
+      // Error handling yang lebih rapi untuk user
+      if (e.code == 'user-not-found' || e.code == 'wrong-password' || e.code == 'invalid-credential') {
+        return "Username atau PIN salah!";
+      }
+      return "Gagal login: ${e.message}";
     } catch (e) {
-      return "Username atau PIN salah!";
+      return "Terjadi kesalahan jaringan.";
     }
   }
 
-  // --- AMBIL DATA USER (Untuk Profil) ---
+  // --- AMBIL DATA USER (Untuk Profil/Home) ---
   Future<Map<String, dynamic>?> getUserData() async {
     User? user = _auth.currentUser;
     if (user != null) {
