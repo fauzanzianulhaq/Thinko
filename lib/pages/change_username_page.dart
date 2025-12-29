@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // Tambahan
+import '../services/firebase_service.dart'; // Tambahan
+import 'welcome_page.dart'; // Import halaman welcome
 
 class ChangeUsernamePage extends StatefulWidget {
   const ChangeUsernamePage({super.key});
@@ -8,31 +11,56 @@ class ChangeUsernamePage extends StatefulWidget {
 }
 
 class _ChangeUsernamePageState extends State<ChangeUsernamePage> {
-  // Controller untuk membaca teks input
   final TextEditingController _usernameController = TextEditingController();
+  final FirebaseService _firebaseService = FirebaseService(); // Panggil Service
+  bool _isLoading = false;
 
-  // --- LOGIKA SIMPAN ---
-  void _handleSave() {
+  // --- LOGIKA SIMPAN (DIPERBAIKI) ---
+  void _handleSave() async {
     String input = _usernameController.text.trim();
 
-    // CONTOH LOGIKA: Anggaplah username "admin" atau "Asep Knalpot" sudah dipakai
-    if (input.toLowerCase() == "admin" || input.toLowerCase() == "asep knalpot") {
-      _showErrorDialog(); // Munculkan Popup Error
-    } else if (input.isEmpty) {
+    // 1. Validasi Kosong
+    if (input.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Username tidak boleh kosong!")),
       );
-    } else {
-      // BERHASIL
-      Navigator.pop(context); 
+      return;
+    }
+
+    setState(() => _isLoading = true); // Mulai Loading
+
+    // 2. Panggil Firebase Service
+    String? error = await _firebaseService.updateUsername(input);
+
+    if (!mounted) return;
+    setState(() => _isLoading = false); // Stop Loading
+
+    if (error == null) {
+      // BERHASIL -> LOGOUT & KE HALAMAN WELCOME
+      await FirebaseAuth.instance.signOut();
+
+      if (!mounted) return;
+      
+      // Tampilkan Pesan Sukses
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Username diganti menjadi $input")),
+        SnackBar(content: Text("Berhasil! Silakan LOGIN ULANG dengan username: $input")),
       );
+
+      // Tendang ke halaman Welcome (Hapus riwayat)
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const WelcomePage()),
+        (route) => false,
+      );
+
+    } else {
+      // GAGAL -> Munculkan Popup Robot dengan Pesan Error dari Firebase
+      _showErrorDialog(error); 
     }
   }
 
-  // --- POPUP ERROR (DESAIN ROBOT) ---
-  void _showErrorDialog() {
+  // --- POPUP ERROR (DESAIN ROBOT ASLI KAMU) ---
+  void _showErrorDialog(String message) {
     showDialog(
       context: context,
       builder: (context) {
@@ -56,7 +84,7 @@ class _ChangeUsernamePageState extends State<ChangeUsernamePage> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const Text(
-                      "Ups! Username ini sudah dipakai",
+                      "Gagal Mengganti",
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 18,
@@ -65,10 +93,10 @@ class _ChangeUsernamePageState extends State<ChangeUsernamePage> {
                       ),
                     ),
                     const SizedBox(height: 10),
-                    const Text(
-                      "Coba buat yang lain, ya!",
+                    Text(
+                      message, // Pesan Error Dinamis dari Firebase
                       textAlign: TextAlign.center,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 14,
                         color: Colors.black54,
                       ),
@@ -115,7 +143,7 @@ class _ChangeUsernamePageState extends State<ChangeUsernamePage> {
                     radius: 35,
                     backgroundColor: Colors.white,
                     // Pastikan file ini ada di assets
-                    backgroundImage: AssetImage('assets/images/robot1.png'), 
+                    backgroundImage: AssetImage('assets/images/logo_thinko.png'), 
                   ),
                 ),
               ),
@@ -142,19 +170,19 @@ class _ChangeUsernamePageState extends State<ChangeUsernamePage> {
           style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
       ),
-      body: SingleChildScrollView( // Tambahkan Scroll biar aman di HP kecil
+      body: SingleChildScrollView( 
         padding: const EdgeInsets.all(24.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 10),
             
-            // 1. GAMBAR ROBOT SECURITY BESAR
+            // 1. GAMBAR ROBOT SECURITY BESAR (ASLI)
             Center(
               child: SizedBox(
                 height: 180,
                 child: Image.asset(
-                  'assets/images/robot2.png', // Ganti gambar robot security jika ada
+                  'assets/images/robot2.png', // Robot Security
                   fit: BoxFit.contain,
                 ),
               ),
@@ -175,7 +203,7 @@ class _ChangeUsernamePageState extends State<ChangeUsernamePage> {
 
             // 3. TEXT FIELD
             TextField(
-              controller: _usernameController, // Sambungkan controller
+              controller: _usernameController, 
               decoration: InputDecoration(
                 filled: true,
                 fillColor: Colors.grey[200],
@@ -196,7 +224,7 @@ class _ChangeUsernamePageState extends State<ChangeUsernamePage> {
               width: double.infinity,
               height: 55,
               child: ElevatedButton(
-                onPressed: _handleSave, // Panggil fungsi cek logika
+                onPressed: _isLoading ? null : _handleSave, // Kunci tombol saat loading
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF1CC600),
                   shape: RoundedRectangleBorder(
@@ -204,14 +232,16 @@ class _ChangeUsernamePageState extends State<ChangeUsernamePage> {
                   ),
                   elevation: 2,
                 ),
-                child: const Text(
-                  "Simpan",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                child: _isLoading 
+                  ? const CircularProgressIndicator(color: Colors.white)
+                  : const Text(
+                    "Simpan",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
               ),
             ),
           ],

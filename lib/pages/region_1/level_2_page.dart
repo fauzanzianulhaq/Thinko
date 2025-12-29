@@ -1,6 +1,8 @@
 import 'dart:async'; 
 import 'dart:math';  
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // Wajib
+import 'package:cloud_firestore/cloud_firestore.dart'; // Wajib
 import 'level_3_page.dart'; // Pastikan file ini ada
 
 class Level2Page extends StatefulWidget {
@@ -11,10 +13,10 @@ class Level2Page extends StatefulWidget {
 }
 
 class _Level2PageState extends State<Level2Page> {
-  // --- KONFIGURASI LEVEL 2 (LEBIH SULIT DARI LEVEL 1) ---
-  final int enemyAttackSpeedMs = 1500; // Musuh nyerang tiap 1.5 detik (Lebih cepat dari Lvl 1)
-  final int enemyDamage = 4;           // Damage musuh lebih sakit
-  final double userDamage = 0.2;       // Damage user 20% (Butuh 5x benar)
+  // --- KONFIGURASI LEVEL 2 ---
+  final int enemyAttackSpeedMs = 1500; 
+  final int enemyDamage = 4;           
+  final double userDamage = 0.2;       
 
   // --- STATE GAME ---
   int userHealth = 100;
@@ -22,7 +24,7 @@ class _Level2PageState extends State<Level2Page> {
   Timer? _enemyAttackTimer;
   bool _isStunned = false; 
 
-  // --- DATA SOAL DINAMIS ---
+  // --- DATA SOAL ---
   String question = "";
   int correctAnswer = 0;
   List<int> options = [];
@@ -38,6 +40,24 @@ class _Level2PageState extends State<Level2Page> {
   void dispose() {
     _enemyAttackTimer?.cancel(); 
     super.dispose();
+  }
+
+  // --- FUNGSI UPDATE LEVEL KE FIREBASE (TARGET: LEVEL 3) ---
+  Future<void> _unlockNextLevel() async {
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      DocumentReference userDoc = FirebaseFirestore.instance.collection('users').doc(user.uid);
+      
+      // Ambil data level sekarang
+      DocumentSnapshot snapshot = await userDoc.get();
+      int currentDbLevel = snapshot.get('level') ?? 1;
+
+      // HANYA Update jika level di database masih di bawah 3
+      // Supaya kalau user level 10 main ulang level 2, levelnya gak turun jadi 3
+      if (currentDbLevel < 3) {
+        await userDoc.update({'level': 3}); // BUKA LEVEL 3
+      }
+    }
   }
 
   // --- LOGIKA MUSUH MENYERANG ---
@@ -57,32 +77,32 @@ class _Level2PageState extends State<Level2Page> {
     });
   }
 
-  // --- LOGIKA SOAL (Level 2: Angka 20-50, Perkalian Dasar) ---
+  // --- LOGIKA SOAL ---
   void _generateQuestion() {
     Random random = Random();
     int operator = random.nextInt(4); 
     int a, b;
 
     switch (operator) {
-      case 0: // Penjumlahan (Angka 10-30)
+      case 0: // Penjumlahan
         a = random.nextInt(20) + 10; 
         b = random.nextInt(20) + 10;
         question = "$a + $b";
         correctAnswer = a + b;
         break;
-      case 1: // Pengurangan (Angka 20-50)
+      case 1: // Pengurangan
         a = random.nextInt(30) + 20;
         b = random.nextInt(15) + 5; 
         question = "$a - $b";
         correctAnswer = a - b;
         break;
-      case 2: // Perkalian (Angka 2-9) - Mulai dikenalkan
+      case 2: // Perkalian
         a = random.nextInt(8) + 2;
         b = random.nextInt(5) + 2;
         question = "$a × $b";
         correctAnswer = a * b;
         break;
-      case 3: // Pembagian (Hasil bulat 2-9)
+      case 3: // Pembagian
         b = random.nextInt(5) + 2; 
         int result = random.nextInt(8) + 2; 
         a = b * result; 
@@ -95,7 +115,7 @@ class _Level2PageState extends State<Level2Page> {
 
     Set<int> optionsSet = {correctAnswer};
     while (optionsSet.length < 4) {
-      int offset = random.nextInt(5) + 1; // Pengecoh lebih variatif
+      int offset = random.nextInt(5) + 1; 
       optionsSet.add(random.nextBool() ? correctAnswer + offset : correctAnswer - offset);
     }
     options = optionsSet.toList()..shuffle();
@@ -123,7 +143,7 @@ class _Level2PageState extends State<Level2Page> {
       if (bossHealth <= 0.05) { 
         bossHealth = 0;
         _enemyAttackTimer?.cancel();
-        _showWinDialog();
+        _showWinDialog(); // Panggil Dialog Menang
       } else {
         _generateQuestion(); 
       }
@@ -186,7 +206,7 @@ class _Level2PageState extends State<Level2Page> {
     );
   }
 
-  // --- WIN DIALOG ---
+  // --- WIN DIALOG (LOGIKA UPDATE DISINI) ---
   void _showWinDialog() {
     showDialog(
       context: context,
@@ -231,7 +251,7 @@ class _Level2PageState extends State<Level2Page> {
                         children: [
                           Icon(Icons.stars_rounded, color: Colors.amber, size: 36),
                           SizedBox(width: 8),
-                          Text("10", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)), // Skor beda
+                          Text("10", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)), 
                         ],
                       ),
                     ),
@@ -239,8 +259,13 @@ class _Level2PageState extends State<Level2Page> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
+                        // TOMBOL PETA
                         InkWell(
-                          onTap: () {
+                          onTap: () async {
+                            // Update Level ke 3
+                            await _unlockNextLevel();
+
+                            if (!context.mounted) return;
                             Navigator.pop(context); 
                             Navigator.pop(context); 
                           },
@@ -256,8 +281,14 @@ class _Level2PageState extends State<Level2Page> {
                             ],
                           ),
                         ),
+
+                        // TOMBOL NEXT (LEVEL 3)
                         InkWell(
-                          onTap: () {
+                          onTap: () async {
+                            // Update Level ke 3
+                            await _unlockNextLevel();
+
+                            if (!context.mounted) return;
                             Navigator.pop(context); 
                             // Pindah ke Level 3
                             Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const Level3Page()));
@@ -279,7 +310,6 @@ class _Level2PageState extends State<Level2Page> {
                   ],
                 ),
               ),
-              // KEPALA ROBOT
               Positioned(
                 top: 0, 
                 child: Container(
@@ -410,17 +440,16 @@ class _Level2PageState extends State<Level2Page> {
                           'assets/images/mc.png',
                           height: 150, 
                           fit: BoxFit.contain, 
-                          // color: _isStunned ? Colors.grey : null,
-                          // colorBlendMode: _isStunned ? BlendMode.saturation : null,
+                          color: _isStunned ? Colors.grey : null,
+                          colorBlendMode: _isStunned ? BlendMode.saturation : null,
                         ),
                       ),
                       const SizedBox(width: 10), 
                       // MUSUH LEVEL 2
                       Flexible(
                         child: Image.asset(
-                          // Pastikan aset ini ada
                           'assets/images/monster_level_2.png', 
-                          height: 190, // Boss level 2 mungkin lebih besar
+                          height: 190, 
                           fit: BoxFit.contain,
                         ),
                       ),

@@ -1,8 +1,10 @@
 import 'dart:async'; // Timer
 import 'dart:math';  // Random
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart'; // Wajib untuk fix navigasi
-import 'level_13_page.dart'; // Menuju Boss Region 2 (Level 13)
+import 'package:flutter/scheduler.dart'; 
+import 'package:firebase_auth/firebase_auth.dart'; // Wajib
+import 'package:cloud_firestore/cloud_firestore.dart'; // Wajib
+import 'level_13_page.dart'; // Pastikan file level 13 (BOSS) sudah disiapkan
 
 class Level12Page extends StatefulWidget {
   const Level12Page({super.key});
@@ -13,11 +15,9 @@ class Level12Page extends StatefulWidget {
 
 class _Level12PageState extends State<Level12Page> {
   // --- KONFIGURASI LEVEL 12 (REGION 2: GURUN) ---
-  // Musuh: Sand Mummy (Mumi Pasir Kecil)
-  // Karakteristik: Penjaga makam sebelum boss
-  final int enemyAttackSpeedMs = 1100; // Serangan agak cepat (1.1 detik)
-  final int enemyDamage = 13;          // Damage magis lumayan
-  final double userDamage = 0.15;      // Butuh ~7x benar
+  final int enemyAttackSpeedMs = 1100; 
+  final int enemyDamage = 13;          
+  final double userDamage = 0.15;      
 
   // --- STATE GAME ---
   int userHealth = 100;
@@ -26,7 +26,7 @@ class _Level12PageState extends State<Level12Page> {
   bool _isStunned = false; 
   bool isGameFinished = false;
 
-  // --- DATA SOAL DINAMIS ---
+  // --- DATA SOAL ---
   String question = "";
   int correctAnswer = 0;
   List<int> options = [];
@@ -42,6 +42,22 @@ class _Level12PageState extends State<Level12Page> {
   void dispose() {
     _enemyAttackTimer?.cancel(); 
     super.dispose();
+  }
+
+  // --- FUNGSI UPDATE LEVEL KE FIREBASE (TARGET: LEVEL 13 - BOSS) ---
+  Future<void> _unlockNextLevel() async {
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      DocumentReference userDoc = FirebaseFirestore.instance.collection('users').doc(user.uid);
+      
+      DocumentSnapshot snapshot = await userDoc.get();
+      int currentDbLevel = snapshot.get('level') ?? 1;
+
+      // HANYA Update jika level di database masih di bawah 13
+      if (currentDbLevel < 13) {
+        await userDoc.update({'level': 13}); // BUKA LEVEL 13 (BOSS)
+      }
+    }
   }
 
   // --- LOGIKA MUSUH MENYERANG ---
@@ -61,16 +77,15 @@ class _Level12PageState extends State<Level12Page> {
     });
   }
 
-  // --- LOGIKA SOAL (Level 12: Pemanasan Boss - Soal Menjebak) ---
+  // --- LOGIKA SOAL (Level 12: Soal Menjebak) ---
   void _generateQuestion() {
     Random random = Random();
     int type = random.nextInt(3); 
     int a, b, c;
 
     if (type == 0) {
-      // Prioritas Perkalian di Belakang
-      // A - B x C  (Harus BxC dulu)
-      a = random.nextInt(50) + 50; // Angka besar (50-99)
+      // A - B x C (Prioritas Perkalian di Belakang)
+      a = random.nextInt(50) + 50; 
       b = random.nextInt(5) + 2; 
       c = random.nextInt(5) + 2;
       
@@ -78,28 +93,25 @@ class _Level12PageState extends State<Level12Page> {
       correctAnswer = a - (b * c);
 
     } else if (type == 1) {
-      // Pembagian di Awal lalu Ditambah
-      // A : B + C
-      b = random.nextInt(8) + 2;        // Pembagi
+      // A : B + C (Pembagian di Awal)
+      b = random.nextInt(8) + 2; 
       int hasilBagi = random.nextInt(10) + 2; 
-      a = b * hasilBagi;                // A kelipatan B
+      a = b * hasilBagi; 
       c = random.nextInt(20) + 10;
       
       question = "$a : $b + $c";
       correctAnswer = hasilBagi + c;
 
     } else {
-      // Tanda Kurung di Belakang (Pengurangan)
-      // A - (B - C) -> Ingat minus ketemu minus jadi plus, tapi di sini hasil B-C positif
+      // A - (B - C) (Tanda Kurung di Belakang)
       a = random.nextInt(30) + 20;
       b = random.nextInt(15) + 5;
-      c = random.nextInt(b - 2) + 1; // C < B agar dalam kurung positif
+      c = random.nextInt(b - 2) + 1; 
       
       question = "$a - ($b - $c)";
       correctAnswer = a - (b - c);
     }
 
-    // Generate Opsi Jawaban
     Set<int> optionsSet = {correctAnswer};
     while (optionsSet.length < 4) {
       int offset = random.nextInt(5) + 1;
@@ -115,7 +127,6 @@ class _Level12PageState extends State<Level12Page> {
     if (isGameFinished || _isStunned) return; 
 
     if (selectedAnswer == correctAnswer) {
-      // BENAR
       setState(() {
         bossHealth -= userDamage; 
       });
@@ -128,7 +139,6 @@ class _Level12PageState extends State<Level12Page> {
         ),
       );
 
-      // Cek Menang
       if (bossHealth <= 0.05) {
         setState(() {
           bossHealth = 0;
@@ -144,7 +154,6 @@ class _Level12PageState extends State<Level12Page> {
       }
 
     } else {
-      // SALAH -> Kena Stun (Kutukan Mumi)
       setState(() {
         _isStunned = true; 
       });
@@ -203,7 +212,7 @@ class _Level12PageState extends State<Level12Page> {
     );
   }
 
-  // --- POPUP KEMENANGAN ---
+  // --- WIN DIALOG (UPDATE FIREBASE) ---
   void _showWinDialog() {
     showDialog(
       context: context,
@@ -262,7 +271,7 @@ class _Level12PageState extends State<Level12Page> {
                         children: [
                           Icon(Icons.stars_rounded, color: Colors.amber, size: 36),
                           SizedBox(width: 8),
-                          Text("40", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+                          Text("30", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
                         ],
                       ),
                     ),
@@ -273,11 +282,15 @@ class _Level12PageState extends State<Level12Page> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        // Tombol Peta
+                        // TOMBOL PETA
                         InkWell(
-                          onTap: () {
-                            Navigator.pop(context); // Tutup Dialog
-                            Navigator.pop(context); // Balik ke Peta
+                          onTap: () async {
+                            // Update Level ke 13
+                            await _unlockNextLevel();
+
+                            if (!context.mounted) return;
+                            Navigator.pop(context); 
+                            Navigator.pop(context); 
                           },
                           child: Column(
                             children: [
@@ -291,20 +304,25 @@ class _Level12PageState extends State<Level12Page> {
                             ],
                           ),
                         ),
-                        // Tombol Stage Berikutnya (Ke BOSS Level 13)
+
+                        // TOMBOL STAGE BERIKUTNYA (MENUJU BOSS LEVEL 13)
                         InkWell(
-                          onTap: () {
-                             Navigator.pop(context); 
-                             Navigator.pushReplacement(
-                               context, 
-                               MaterialPageRoute(builder: (context) => const Level13Page())
-                             );
+                          onTap: () async {
+                            // Update Level ke 13
+                            await _unlockNextLevel();
+
+                            if (!context.mounted) return;
+                            Navigator.pop(context); 
+                            Navigator.pushReplacement(
+                              context, 
+                              MaterialPageRoute(builder: (context) => const Level13Page())
+                            );
                           },
                           child: Column(
                             children: [
                               Container(
                                 padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(color: Colors.red[100], shape: BoxShape.circle), // Merah tanda Boss
+                                decoration: BoxDecoration(color: Colors.red[100], shape: BoxShape.circle), // Merah Tanda Boss
                                 child: Icon(Icons.warning_rounded, color: Colors.red[800], size: 30),
                               ),
                               const SizedBox(height: 4),
@@ -398,7 +416,7 @@ class _Level12PageState extends State<Level12Page> {
                                 border: Border.all(color: Colors.black54),
                               ),
                             ),
-                            // Isi Darah (Kuning Emas - Mumi)
+                            // Isi Darah (Kuning Emas)
                             FractionallySizedBox(
                               widthFactor: bossHealth > 0 ? bossHealth : 0, 
                               child: Container(
@@ -415,7 +433,7 @@ class _Level12PageState extends State<Level12Page> {
                               child: CircleAvatar(
                                 radius: 16,
                                 backgroundColor: Colors.white,
-                                // Pastikan ini path ke gambar monster Sand Mummy
+                                // Pastikan file ini ada
                                 backgroundImage: AssetImage('assets/region_2/monster_lvl_12.png'),
                               ),
                             ),
@@ -434,7 +452,7 @@ class _Level12PageState extends State<Level12Page> {
                     margin: const EdgeInsets.only(bottom: 20),
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                     decoration: BoxDecoration(
-                      color: Colors.orangeAccent.withOpacity(0.8), // Warna Sihir Pasir
+                      color: Colors.orangeAccent.withOpacity(0.8),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(color: Colors.white, width: 2),
                     ),
@@ -455,14 +473,14 @@ class _Level12PageState extends State<Level12Page> {
                           'assets/images/mc.png',
                           height: 150, 
                           fit: BoxFit.contain, 
-                          // color: _isStunned ? Colors.orange[200] : null, // Efek pasir
+                          // color: _isStunned ? Colors.orange[200] : null,
                           // colorBlendMode: _isStunned ? BlendMode.modulate : null,
                         ),
                       ),
                       
                       const SizedBox(width: 10), 
 
-                      // MUSUH (Kanan - Monster Level 12 Sand Mummy)
+                      // MUSUH (Kanan - Monster Level 12)
                       Flexible(
                         child: Image.asset(
                           'assets/region_2/monster_lvl_12.png', 
@@ -484,7 +502,7 @@ class _Level12PageState extends State<Level12Page> {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.amber[800]!, width: 2), // Border emas
+                    border: Border.all(color: Colors.amber[800]!, width: 2), 
                     boxShadow: [
                       BoxShadow(color: Colors.amber.withOpacity(0.2), blurRadius: 10, offset: const Offset(0, 5))
                     ],

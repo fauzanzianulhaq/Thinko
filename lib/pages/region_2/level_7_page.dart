@@ -1,7 +1,9 @@
 import 'dart:async'; // Timer
 import 'dart:math';  // Random
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart'; // Wajib untuk fix navigasi
+import 'package:flutter/scheduler.dart'; 
+import 'package:firebase_auth/firebase_auth.dart'; // Wajib
+import 'package:cloud_firestore/cloud_firestore.dart'; // Wajib
 import 'level_8_page.dart'; // Pastikan file level 8 sudah disiapkan
 
 class Level7Page extends StatefulWidget {
@@ -13,7 +15,6 @@ class Level7Page extends StatefulWidget {
 
 class _Level7PageState extends State<Level7Page> {
   // --- KONFIGURASI LEVEL 7 (REGION 2: GURUN PASIR) ---
-  // Musuh: Mini Golem Pasir
   final int enemyAttackSpeedMs = 1300; 
   final int enemyDamage = 5;           
   final double userDamage = 0.2;       
@@ -25,7 +26,7 @@ class _Level7PageState extends State<Level7Page> {
   bool _isStunned = false; 
   bool isGameFinished = false;
 
-  // --- DATA SOAL DINAMIS ---
+  // --- DATA SOAL ---
   String question = "";
   int correctAnswer = 0;
   List<int> options = [];
@@ -41,6 +42,22 @@ class _Level7PageState extends State<Level7Page> {
   void dispose() {
     _enemyAttackTimer?.cancel(); 
     super.dispose();
+  }
+
+  // --- FUNGSI UPDATE LEVEL KE FIREBASE (TARGET: LEVEL 8) ---
+  Future<void> _unlockNextLevel() async {
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      DocumentReference userDoc = FirebaseFirestore.instance.collection('users').doc(user.uid);
+      
+      DocumentSnapshot snapshot = await userDoc.get();
+      int currentDbLevel = snapshot.get('level') ?? 1;
+
+      // HANYA Update jika level di database masih di bawah 8
+      if (currentDbLevel < 8) {
+        await userDoc.update({'level': 8}); // BUKA LEVEL 8
+      }
+    }
   }
 
   // --- LOGIKA MUSUH MENYERANG ---
@@ -63,56 +80,52 @@ class _Level7PageState extends State<Level7Page> {
   // --- LOGIKA SOAL (Level 7: 4 Variasi Operasi Campuran) ---
   void _generateQuestion() {
     Random random = Random();
-    // SEKARANG ADA 4 TIPE SOAL (0, 1, 2, 3)
     int type = random.nextInt(4); 
     int a, b, c;
 
     if (type == 0) {
-      // Tipe 1 (Lama): Perkalian & Pengurangan -> (A x B) - C
-      a = random.nextInt(8) + 3; // 3-10
-      b = random.nextInt(8) + 3; // 3-10
+      // (A x B) - C
+      a = random.nextInt(8) + 3; 
+      b = random.nextInt(8) + 3; 
       int hasilKali = a * b;
-      
-      // Pastikan hasil positif
       c = random.nextInt(hasilKali - 5) + 2; 
       
       question = "($a × $b) - $c";
       correctAnswer = hasilKali - c;
 
     } else if (type == 1) {
-      // Tipe 2 (Lama): Pembagian & Penjumlahan -> (A : B) + C
-      b = random.nextInt(5) + 2;        // Pembagi (2-6)
-      int hasilBagi = random.nextInt(10) + 2; // Hasil bagi (2-11)
-      a = b * hasilBagi;                // A kelipatan B
-      c = random.nextInt(20) + 10;      // Penambah (10-29)
+      // (A : B) + C
+      b = random.nextInt(5) + 2;        
+      int hasilBagi = random.nextInt(10) + 2; 
+      a = b * hasilBagi;                
+      c = random.nextInt(20) + 10;      
       
       question = "($a : $b) + $c";
       correctAnswer = hasilBagi + c;
 
     } else if (type == 2) {
-      // Tipe 3 (BARU): Perkalian & Penjumlahan -> (A x B) + C
-      a = random.nextInt(8) + 2; // 2-9
-      b = random.nextInt(8) + 2; // 2-9
-      c = random.nextInt(20) + 5; // 5-24
+      // (A x B) + C
+      a = random.nextInt(8) + 2; 
+      b = random.nextInt(8) + 2; 
+      c = random.nextInt(20) + 5; 
       
       question = "($a × $b) + $c";
       correctAnswer = (a * b) + c;
 
     } else {
-      // Tipe 4 (BARU): Pembagian & Pengurangan -> (A : B) - C
-      b = random.nextInt(6) + 2;        // Pembagi (2-7)
-      int hasilBagi = random.nextInt(12) + 5; // Hasil bagi (5-16) -> biar cukup besar untuk dikurang
-      a = b * hasilBagi;                // A kelipatan B
-      c = random.nextInt(hasilBagi - 2) + 1; // Pengurang < Hasil Bagi (biar positif)
+      // (A : B) - C
+      b = random.nextInt(6) + 2;        
+      int hasilBagi = random.nextInt(12) + 5; 
+      a = b * hasilBagi;                
+      c = random.nextInt(hasilBagi - 2) + 1; 
       
       question = "($a : $b) - $c";
       correctAnswer = (a ~/ b) - c;
     }
 
-    // Generate Opsi Jawaban
     Set<int> optionsSet = {correctAnswer};
     while (optionsSet.length < 4) {
-      int offset = random.nextInt(6) + 1; // Variasi pengecoh
+      int offset = random.nextInt(6) + 1; 
       optionsSet.add(random.nextBool() ? correctAnswer + offset : correctAnswer - offset);
     }
     options = optionsSet.toList()..shuffle();
@@ -125,7 +138,6 @@ class _Level7PageState extends State<Level7Page> {
     if (isGameFinished || _isStunned) return; 
 
     if (selectedAnswer == correctAnswer) {
-      // BENAR
       setState(() {
         bossHealth -= userDamage; 
       });
@@ -138,7 +150,6 @@ class _Level7PageState extends State<Level7Page> {
         ),
       );
 
-      // Cek Menang
       if (bossHealth <= 0.05) {
         setState(() {
           bossHealth = 0;
@@ -154,7 +165,6 @@ class _Level7PageState extends State<Level7Page> {
       }
 
     } else {
-      // SALAH -> Kena Stun
       setState(() {
         _isStunned = true; 
       });
@@ -213,7 +223,7 @@ class _Level7PageState extends State<Level7Page> {
     );
   }
 
-  // --- POPUP KEMENANGAN ---
+  // --- WIN DIALOG (UPDATE FIREBASE) ---
   void _showWinDialog() {
     showDialog(
       context: context,
@@ -283,11 +293,15 @@ class _Level7PageState extends State<Level7Page> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        // Tombol Peta
+                        // TOMBOL PETA
                         InkWell(
-                          onTap: () {
-                            Navigator.pop(context); // Tutup Dialog
-                            Navigator.pop(context); // Balik ke Peta
+                          onTap: () async {
+                            // Update Level ke 8
+                            await _unlockNextLevel();
+
+                            if (!context.mounted) return;
+                            Navigator.pop(context); 
+                            Navigator.pop(context); 
                           },
                           child: Column(
                             children: [
@@ -301,14 +315,19 @@ class _Level7PageState extends State<Level7Page> {
                             ],
                           ),
                         ),
-                        // Tombol Stage Berikutnya (Ke Level 8)
+
+                        // TOMBOL STAGE BERIKUTNYA (MENUJU LEVEL 8)
                         InkWell(
-                          onTap: () {
-                             Navigator.pop(context); 
-                             Navigator.pushReplacement(
-                               context, 
-                               MaterialPageRoute(builder: (context) => const Level8Page())
-                             );
+                          onTap: () async {
+                            // Update Level ke 8
+                            await _unlockNextLevel();
+
+                            if (!context.mounted) return;
+                            Navigator.pop(context); 
+                            Navigator.pushReplacement(
+                              context, 
+                              MaterialPageRoute(builder: (context) => const Level8Page())
+                            );
                           },
                           child: Column(
                             children: [
@@ -357,6 +376,7 @@ class _Level7PageState extends State<Level7Page> {
           Container(
             decoration: const BoxDecoration(
               image: DecorationImage(
+                // Pastikan gambar ini ada di assets folder
                 image: AssetImage('assets/region_2/gurun.png'), 
                 fit: BoxFit.cover, 
               ),
@@ -425,7 +445,7 @@ class _Level7PageState extends State<Level7Page> {
                               child: CircleAvatar(
                                 radius: 16,
                                 backgroundColor: Colors.white,
-                                // Pastikan ini path ke gambar monster yang kamu kirim
+                                // Pastikan file ini ada
                                 backgroundImage: AssetImage('assets/region_2/monster_lvl_7.png'),
                               ),
                             ),

@@ -1,8 +1,10 @@
 import 'dart:async'; // Timer
 import 'dart:math';  // Random
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart'; // Wajib untuk fix navigasi
-import 'level_11_page.dart'; // Pastikan file level 11 nanti dibuat
+import 'package:flutter/scheduler.dart'; 
+import 'package:firebase_auth/firebase_auth.dart'; // Wajib
+import 'package:cloud_firestore/cloud_firestore.dart'; // Wajib
+import 'level_11_page.dart'; // Pastikan file level 11 sudah disiapkan
 
 class Level10Page extends StatefulWidget {
   const Level10Page({super.key});
@@ -13,11 +15,9 @@ class Level10Page extends StatefulWidget {
 
 class _Level10PageState extends State<Level10Page> {
   // --- KONFIGURASI LEVEL 10 (REGION 2: GURUN) ---
-  // Musuh: Crystal Scorpion (Kalajengking Kristal)
-  // Karakteristik: Keras (batu) dan berbahaya (sengatan)
-  final int enemyAttackSpeedMs = 1000; // Serangan stabil (1 detik)
-  final int enemyDamage = 12;          // Damage cukup sakit
-  final double userDamage = 0.15;      // Armor batu, butuh ~7x benar
+  final int enemyAttackSpeedMs = 1000; 
+  final int enemyDamage = 12;          
+  final double userDamage = 0.15;      
 
   // --- STATE GAME ---
   int userHealth = 100;
@@ -26,7 +26,7 @@ class _Level10PageState extends State<Level10Page> {
   bool _isStunned = false; 
   bool isGameFinished = false;
 
-  // --- DATA SOAL DINAMIS ---
+  // --- DATA SOAL ---
   String question = "";
   int correctAnswer = 0;
   List<int> options = [];
@@ -42,6 +42,22 @@ class _Level10PageState extends State<Level10Page> {
   void dispose() {
     _enemyAttackTimer?.cancel(); 
     super.dispose();
+  }
+
+  // --- FUNGSI UPDATE LEVEL KE FIREBASE (TARGET: LEVEL 11) ---
+  Future<void> _unlockNextLevel() async {
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      DocumentReference userDoc = FirebaseFirestore.instance.collection('users').doc(user.uid);
+      
+      DocumentSnapshot snapshot = await userDoc.get();
+      int currentDbLevel = snapshot.get('level') ?? 1;
+
+      // HANYA Update jika level di database masih di bawah 11
+      if (currentDbLevel < 11) {
+        await userDoc.update({'level': 11}); // BUKA LEVEL 11
+      }
+    }
   }
 
   // --- LOGIKA MUSUH MENYERANG ---
@@ -61,16 +77,15 @@ class _Level10PageState extends State<Level10Page> {
     });
   }
 
-  // --- LOGIKA SOAL (Level 10: Persiapan Boss) ---
-  // Fokus: Operasi Campuran Angka Puluhan (Makin Rumit)
+  // --- LOGIKA SOAL (Level 10: Operasi Campuran Angka Puluhan) ---
   void _generateQuestion() {
     Random random = Random();
-    int type = random.nextInt(3); // Variasi soal
+    int type = random.nextInt(3); 
     int a, b, c;
 
     if (type == 0) {
-      // Penjumlahan & Pengurangan (Hasil > 50)
-      a = random.nextInt(40) + 30; // 30-69
+      // Penjumlahan & Pengurangan
+      a = random.nextInt(40) + 30; 
       b = random.nextInt(20) + 10; 
       c = random.nextInt(10) + 5;
       
@@ -78,26 +93,25 @@ class _Level10PageState extends State<Level10Page> {
       correctAnswer = a - b + c;
 
     } else if (type == 1) {
-      // Perkalian dengan Penjumlahan (Angka Sedang)
-      a = random.nextInt(8) + 4; // 4-11
-      b = random.nextInt(8) + 3; // 3-10
+      // Perkalian & Penjumlahan
+      a = random.nextInt(8) + 4; 
+      b = random.nextInt(8) + 3; 
       c = random.nextInt(20) + 10;
       
       question = "$a × $b + $c";
       correctAnswer = (a * b) + c;
 
     } else {
-      // Pembagian dengan Pengurangan (Hasil Hati-hati)
-      b = random.nextInt(6) + 3;        // Pembagi 3-8
+      // Pembagian & Pengurangan
+      b = random.nextInt(6) + 3;        
       int hasilBagi = random.nextInt(10) + 5; 
-      a = b * hasilBagi;                // A kelipatan B
-      c = random.nextInt(hasilBagi - 2) + 1; // C lebih kecil dari hasil bagi
+      a = b * hasilBagi;                
+      c = random.nextInt(hasilBagi - 2) + 1; 
       
       question = "$a : $b - $c";
       correctAnswer = (a ~/ b) - c;
     }
 
-    // Generate Opsi Jawaban
     Set<int> optionsSet = {correctAnswer};
     while (optionsSet.length < 4) {
       int offset = random.nextInt(5) + 1;
@@ -113,21 +127,18 @@ class _Level10PageState extends State<Level10Page> {
     if (isGameFinished || _isStunned) return; 
 
     if (selectedAnswer == correctAnswer) {
-      // BENAR
       setState(() {
         bossHealth -= userDamage; 
       });
       
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          // Text sesuai monster batu/kristal
           content: Text("Retak! Armor kristalnya pecah!"), 
           backgroundColor: Colors.green,
           duration: Duration(milliseconds: 300),
         ),
       );
 
-      // Cek Menang
       if (bossHealth <= 0.05) {
         setState(() {
           bossHealth = 0;
@@ -143,7 +154,6 @@ class _Level10PageState extends State<Level10Page> {
       }
 
     } else {
-      // SALAH -> Kena Stun (Sengatan Racun)
       setState(() {
         _isStunned = true; 
       });
@@ -151,7 +161,7 @@ class _Level10PageState extends State<Level10Page> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text("Awas! Sengatan Kristal Beracun! (Stun)"), 
-          backgroundColor: Colors.purpleAccent, // Warna Racun
+          backgroundColor: Colors.purpleAccent, 
           duration: Duration(milliseconds: 500),
         ),
       );
@@ -202,7 +212,7 @@ class _Level10PageState extends State<Level10Page> {
     );
   }
 
-  // --- POPUP KEMENANGAN ---
+  // --- WIN DIALOG (UPDATE FIREBASE) ---
   void _showWinDialog() {
     showDialog(
       context: context,
@@ -272,11 +282,15 @@ class _Level10PageState extends State<Level10Page> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        // Tombol Peta
+                        // TOMBOL PETA
                         InkWell(
-                          onTap: () {
-                            Navigator.pop(context); // Tutup Dialog
-                            Navigator.pop(context); // Balik ke Peta
+                          onTap: () async {
+                            // Update Level ke 11
+                            await _unlockNextLevel();
+
+                            if (!context.mounted) return;
+                            Navigator.pop(context); 
+                            Navigator.pop(context); 
                           },
                           child: Column(
                             children: [
@@ -290,14 +304,19 @@ class _Level10PageState extends State<Level10Page> {
                             ],
                           ),
                         ),
-                        // Tombol Stage Berikutnya (Ke Level 11)
+
+                        // TOMBOL STAGE BERIKUTNYA (MENUJU LEVEL 11)
                         InkWell(
-                          onTap: () {
-                             Navigator.pop(context); 
-                             Navigator.pushReplacement(
-                               context, 
-                               MaterialPageRoute(builder: (context) => const Level11Page())
-                             );
+                          onTap: () async {
+                            // Update Level ke 11
+                            await _unlockNextLevel();
+
+                            if (!context.mounted) return;
+                            Navigator.pop(context); 
+                            Navigator.pushReplacement(
+                              context, 
+                              MaterialPageRoute(builder: (context) => const Level11Page())
+                            );
                           },
                           child: Column(
                             children: [
@@ -342,7 +361,7 @@ class _Level10PageState extends State<Level10Page> {
     return Scaffold(
       body: Stack(
         children: [
-          // 1. BACKGROUND (Gurun - Region 2)
+          // 1. BACKGROUND (Region 2: Gurun)
           Container(
             decoration: const BoxDecoration(
               image: DecorationImage(
@@ -414,7 +433,7 @@ class _Level10PageState extends State<Level10Page> {
                               child: CircleAvatar(
                                 radius: 16,
                                 backgroundColor: Colors.white,
-                                // Pastikan ini path ke gambar monster Crystal Scorpion
+                                // Pastikan file ini ada
                                 backgroundImage: AssetImage('assets/region_2/monster_lvl_10.png'),
                               ),
                             ),
@@ -433,7 +452,7 @@ class _Level10PageState extends State<Level10Page> {
                     margin: const EdgeInsets.only(bottom: 20),
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                     decoration: BoxDecoration(
-                      color: Colors.purple.withOpacity(0.8), // Efek Racun
+                      color: Colors.purple.withOpacity(0.8),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(color: Colors.white, width: 2),
                     ),
@@ -454,14 +473,14 @@ class _Level10PageState extends State<Level10Page> {
                           'assets/images/mc.png',
                           height: 150, 
                           fit: BoxFit.contain, 
-                          // color: _isStunned ? Colors.purple[200] : null, // Ungu keracunan
+                          // color: _isStunned ? Colors.purple[200] : null,
                           // colorBlendMode: _isStunned ? BlendMode.modulate : null,
                         ),
                       ),
                       
                       const SizedBox(width: 10), 
 
-                      // MUSUH (Kanan - Monster Level 10 Crystal Scorpion)
+                      // MUSUH (Kanan - Monster Level 10)
                       Flexible(
                         child: Image.asset(
                           'assets/region_2/monster_lvl_10.png', 

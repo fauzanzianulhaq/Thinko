@@ -1,19 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // 1. Tambah ini (Buat ngecek user)
 import 'pages/welcome_page.dart';
+import 'pages/home_page.dart'; // 2. Tambah ini (Buat arahin ke Home)
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // --- BAGIAN INI DIPERBARUI ---
-  // Kita pasang "jaring pengaman" (Try-Catch)
   try {
     await Firebase.initializeApp();
-    print("✅ FIREBASE SUKSES TERHUBUNG!"); // Cek tulisan ini di Debug Console nanti
+    print("✅ FIREBASE SUKSES TERHUBUNG!"); 
   } catch (e) {
-    print("❌ FIREBASE GAGAL: $e"); // Kalau error, alasannya akan muncul di sini
+    print("❌ FIREBASE GAGAL: $e"); 
   }
-  // -----------------------------
 
   runApp(const MyApp());
 }
@@ -30,7 +29,14 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
         useMaterial3: true,
       ),
-      home: const WelcomePage(),
+      // --- BAGIAN INI SANGAT PENTING (SATPAM PINTU MASUK) ---
+      // Logic: Apakah User ada datanya (currentUser != null)?
+      // Jika YA (?) -> Masuk HomePage
+      // Jika TIDAK (:) -> Masuk WelcomePage
+      home: FirebaseAuth.instance.currentUser != null 
+          ? const HomePage() 
+          : const WelcomePage(),
+      // -----------------------------------------------------
     );
   }
 }

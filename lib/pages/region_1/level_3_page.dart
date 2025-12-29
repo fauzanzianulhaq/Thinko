@@ -2,6 +2,8 @@ import 'dart:async'; // Timer
 import 'dart:math';  // Random
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart'; 
+import 'package:firebase_auth/firebase_auth.dart'; // Wajib
+import 'package:cloud_firestore/cloud_firestore.dart'; // Wajib
 import 'level_4_page.dart'; // Pastikan file level 4 sudah ada
 
 class Level3Page extends StatefulWidget {
@@ -42,6 +44,23 @@ class _Level3PageState extends State<Level3Page> {
     super.dispose();
   }
 
+  // --- FUNGSI UPDATE LEVEL KE FIREBASE (TARGET: LEVEL 4) ---
+  Future<void> _unlockNextLevel() async {
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      DocumentReference userDoc = FirebaseFirestore.instance.collection('users').doc(user.uid);
+      
+      // Ambil data level sekarang
+      DocumentSnapshot snapshot = await userDoc.get();
+      int currentDbLevel = snapshot.get('level') ?? 1;
+
+      // HANYA Update jika level di database masih di bawah 4
+      if (currentDbLevel < 4) {
+        await userDoc.update({'level': 4}); // BUKA LEVEL 4
+      }
+    }
+  }
+
   // --- LOGIKA MUSUH MENYERANG ---
   void _startEnemyAttack() {
     _enemyAttackTimer = Timer.periodic(Duration(milliseconds: enemyAttackSpeedMs), (timer) {
@@ -62,17 +81,15 @@ class _Level3PageState extends State<Level3Page> {
   // --- LOGIKA SOAL (Level 3: Operasi Campuran 3 Angka) ---
   void _generateQuestion() {
     Random random = Random();
-    // Acak jenis soal: 0 = (+-), 1 = (x+), 2 = (:/)
     int type = random.nextInt(3); 
     int a, b, c;
 
     if (type == 0) {
       // TIPE 1: Penjumlahan & Pengurangan (A - B + C)
-      a = random.nextInt(30) + 10; // 10-39
-      b = random.nextInt(10) + 1;  // 1-10
-      c = random.nextInt(10) + 1;  // 1-10
+      a = random.nextInt(30) + 10; 
+      b = random.nextInt(10) + 1;  
+      c = random.nextInt(10) + 1;  
       
-      // Pastikan hasil tidak negatif di tengah jalan
       if (a < b) { int temp = a; a = b; b = temp; } 
       
       question = "$a - $b + $c";
@@ -80,30 +97,27 @@ class _Level3PageState extends State<Level3Page> {
 
     } else if (type == 1) {
       // TIPE 2: Perkalian & Penjumlahan (A x B + C)
-      // Ingat: Perkalian didahulukan secara matematika
-      a = random.nextInt(8) + 2;   // 2-9
-      b = random.nextInt(8) + 2;   // 2-9
-      c = random.nextInt(20) + 1;  // 1-20
+      a = random.nextInt(8) + 2;   
+      b = random.nextInt(8) + 2;   
+      c = random.nextInt(20) + 1;  
       
       question = "$a × $b + $c";
       correctAnswer = (a * b) + c;
 
     } else {
       // TIPE 3: Pembagian & Pengurangan (A : B - C)
-      // Kita buat A harus habis dibagi B
-      b = random.nextInt(5) + 2;        // Pembagi: 2-6
-      int hasilBagi = random.nextInt(8) + 5; // Hasil bagi: 5-12
-      a = b * hasilBagi;                // A otomatis kelipatan B
-      c = random.nextInt(hasilBagi - 1) + 1; // C < Hasil Bagi (biar positif)
+      b = random.nextInt(5) + 2;        
+      int hasilBagi = random.nextInt(8) + 5; 
+      a = b * hasilBagi;                
+      c = random.nextInt(hasilBagi - 1) + 1; 
 
       question = "$a : $b - $c";
       correctAnswer = (a ~/ b) - c;
     }
 
-    // Generate Opsi Jawaban (1 Benar, 3 Salah)
     Set<int> optionsSet = {correctAnswer};
     while (optionsSet.length < 4) {
-      int offset = random.nextInt(5) + 1; // Jawaban pengecoh beda dikit
+      int offset = random.nextInt(5) + 1; 
       optionsSet.add(random.nextBool() ? correctAnswer + offset : correctAnswer - offset);
     }
     options = optionsSet.toList()..shuffle();
@@ -116,7 +130,6 @@ class _Level3PageState extends State<Level3Page> {
     if (isGameFinished || _isStunned) return; 
 
     if (selectedAnswer == correctAnswer) {
-      // BENAR
       setState(() {
         bossHealth -= userDamage; 
       });
@@ -129,7 +142,6 @@ class _Level3PageState extends State<Level3Page> {
         ),
       );
 
-      // Cek Menang
       if (bossHealth <= 0.05) {
         setState(() {
           bossHealth = 0;
@@ -141,11 +153,10 @@ class _Level3PageState extends State<Level3Page> {
           if (mounted) _showWinDialog();
         });
       } else {
-        _generateQuestion(); // Ganti soal
+        _generateQuestion(); 
       }
 
     } else {
-      // SALAH -> Kena Stun
       setState(() {
         _isStunned = true; 
       });
@@ -204,7 +215,7 @@ class _Level3PageState extends State<Level3Page> {
     );
   }
 
-  // --- POPUP KEMENANGAN ---
+  // --- WIN DIALOG (UPDATE FIREBASE DISINI) ---
   void _showWinDialog() {
     showDialog(
       context: context,
@@ -263,7 +274,7 @@ class _Level3PageState extends State<Level3Page> {
                         children: [
                           Icon(Icons.stars_rounded, color: Colors.amber, size: 36),
                           SizedBox(width: 8),
-                          Text("5", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+                          Text("15", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)), // Skor Level 3
                         ],
                       ),
                     ),
@@ -274,9 +285,13 @@ class _Level3PageState extends State<Level3Page> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        // Tombol Peta
+                        // TOMBOL PETA
                         InkWell(
-                          onTap: () {
+                          onTap: () async {
+                            // Update Level ke 4
+                            await _unlockNextLevel();
+
+                            if (!context.mounted) return;
                             Navigator.pop(context); // Tutup Dialog
                             Navigator.pop(context); // Balik ke Peta
                           },
@@ -292,14 +307,19 @@ class _Level3PageState extends State<Level3Page> {
                             ],
                           ),
                         ),
-                        // Tombol Stage Berikutnya (MENUJU LEVEL 4)
+
+                        // TOMBOL STAGE BERIKUTNYA (MENUJU LEVEL 4)
                         InkWell(
-                          onTap: () {
-                             Navigator.pop(context); // Tutup dialog
-                             Navigator.pushReplacement(
-                               context, 
-                               MaterialPageRoute(builder: (context) => const Level4Page())
-                             );
+                          onTap: () async {
+                            // Update Level ke 4
+                            await _unlockNextLevel();
+
+                            if (!context.mounted) return;
+                            Navigator.pop(context); // Tutup dialog
+                            Navigator.pushReplacement(
+                              context, 
+                              MaterialPageRoute(builder: (context) => const Level4Page())
+                            );
                           },
                           child: Column(
                             children: [
@@ -309,7 +329,7 @@ class _Level3PageState extends State<Level3Page> {
                                 child: Icon(Icons.skip_next_rounded, color: Colors.green[700], size: 30),
                               ),
                               const SizedBox(height: 4),
-                              const Text("Stage berikutnya", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                              const Text("Level 4", style: TextStyle(fontSize: 12, color: Colors.grey)),
                             ],
                           ),
                         ),
@@ -399,7 +419,7 @@ class _Level3PageState extends State<Level3Page> {
                               child: Container(
                                 height: 14,
                                 decoration: BoxDecoration(
-                                  color: Colors.redAccent,
+                                  color: Colors.purpleAccent, // Warna ungu buat boss level 3
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                               ),
@@ -409,6 +429,7 @@ class _Level3PageState extends State<Level3Page> {
                               child: CircleAvatar(
                                 radius: 16,
                                 backgroundColor: Colors.white,
+                                // Pastikan gambar boss level 3 ada
                                 backgroundImage: AssetImage('assets/images/monster_level_3.png'), 
                               ),
                             ),
@@ -418,9 +439,10 @@ class _Level3PageState extends State<Level3Page> {
                     ],
                   ),
                 ),
+
                 const Spacer(),
-                
-                // VISUAL STUN
+
+                // STUN ALERT
                 if (_isStunned)
                   Container(
                     margin: const EdgeInsets.only(bottom: 20),
@@ -429,11 +451,11 @@ class _Level3PageState extends State<Level3Page> {
                       color: Colors.black.withOpacity(0.7),
                       borderRadius: BorderRadius.circular(20)
                     ),
-                    child: const Text("KAMU PUSING! (STUNNED)", 
+                    child: const Text("TERSTUN! TUNGGU SEBENTAR...", 
                       style: TextStyle(color: Colors.yellow, fontWeight: FontWeight.bold)),
                   ),
 
-                // ARENA
+                // ARENA KARAKTER
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Row(
@@ -445,15 +467,15 @@ class _Level3PageState extends State<Level3Page> {
                           'assets/images/mc.png',
                           height: 150,
                           fit: BoxFit.contain,
-                          // color: _isStunned ? Colors.grey : null,
-                          // colorBlendMode: _isStunned ? BlendMode.saturation : null,
+                          color: _isStunned ? Colors.grey : null,
+                          colorBlendMode: _isStunned ? BlendMode.saturation : null,
                         ),
                       ),
                       const SizedBox(width: 10),
                       Flexible(
                         child: Image.asset(
                           'assets/images/monster_level_3.png', 
-                          height: 170, 
+                          height: 170,
                           fit: BoxFit.contain,
                         ),
                       ),

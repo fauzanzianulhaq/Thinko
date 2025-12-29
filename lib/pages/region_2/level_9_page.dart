@@ -1,7 +1,9 @@
 import 'dart:async'; // Timer
 import 'dart:math';  // Random
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart'; // Wajib untuk fix navigasi
+import 'package:flutter/scheduler.dart'; 
+import 'package:firebase_auth/firebase_auth.dart'; // Wajib
+import 'package:cloud_firestore/cloud_firestore.dart'; // Wajib
 import 'level_10_page.dart'; // Pastikan file level 10 sudah disiapkan
 
 class Level9Page extends StatefulWidget {
@@ -13,11 +15,9 @@ class Level9Page extends StatefulWidget {
 
 class _Level9PageState extends State<Level9Page> {
   // --- KONFIGURASI LEVEL 9 (REGION 2: GURUN) ---
-  // Musuh: Cactus Boxer (Kaktus Petinju)
-  // Karakteristik: Petinju, serangan cepat dan keras
-  final int enemyAttackSpeedMs = 950;  // Serangan SANGAT CEPAT (0.8 detik)
-  final int enemyDamage = 8;          // Pukulannya keras
-  final double userDamage = 0.2;       // Butuh 5x benar untuk menang
+  final int enemyAttackSpeedMs = 950;  // Serangan SANGAT CEPAT
+  final int enemyDamage = 8;           // Pukulan Keras
+  final double userDamage = 0.2;       
 
   // --- STATE GAME ---
   int userHealth = 100;
@@ -26,7 +26,7 @@ class _Level9PageState extends State<Level9Page> {
   bool _isStunned = false; 
   bool isGameFinished = false;
 
-  // --- DATA SOAL DINAMIS ---
+  // --- DATA SOAL ---
   String question = "";
   int correctAnswer = 0;
   List<int> options = [];
@@ -42,6 +42,22 @@ class _Level9PageState extends State<Level9Page> {
   void dispose() {
     _enemyAttackTimer?.cancel(); 
     super.dispose();
+  }
+
+  // --- FUNGSI UPDATE LEVEL KE FIREBASE (TARGET: LEVEL 10) ---
+  Future<void> _unlockNextLevel() async {
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      DocumentReference userDoc = FirebaseFirestore.instance.collection('users').doc(user.uid);
+      
+      DocumentSnapshot snapshot = await userDoc.get();
+      int currentDbLevel = snapshot.get('level') ?? 1;
+
+      // HANYA Update jika level di database masih di bawah 10
+      if (currentDbLevel < 10) {
+        await userDoc.update({'level': 10}); // BUKA LEVEL 10
+      }
+    }
   }
 
   // --- LOGIKA MUSUH MENYERANG ---
@@ -61,15 +77,13 @@ class _Level9PageState extends State<Level9Page> {
     });
   }
 
-  // --- LOGIKA SOAL (Level 9: Kombinasi Cepat - 4 Variasi) ---
+  // --- LOGIKA SOAL (Level 9: Kombinasi Cepat) ---
   void _generateQuestion() {
     Random random = Random();
-    // SEKARANG ADA 4 TIPE SOAL (0, 1, 2, 3)
     int type = random.nextInt(4); 
     int a, b, c;
 
     if (type == 0) {
-      // Tipe 1: Perkalian Cepat dengan Penjumlahan
       // A x B + C
       a = random.nextInt(9) + 2; 
       b = random.nextInt(9) + 2; 
@@ -79,16 +93,14 @@ class _Level9PageState extends State<Level9Page> {
       correctAnswer = (a * b) + c;
 
     } else if (type == 1) {
-      // Tipe 2: Pengurangan Angka Besar
-      // A - B
-      a = random.nextInt(50) + 50; // 50-99
-      b = random.nextInt(20) + 10; // 10-29
+      // A - B (Angka Besar)
+      a = random.nextInt(50) + 50; 
+      b = random.nextInt(20) + 10; 
       
       question = "$a - $b";
       correctAnswer = a - b;
 
     } else if (type == 2) {
-      // Tipe 3: Pembagian Sederhana
       // A : B
       b = random.nextInt(5) + 2; 
       int result = random.nextInt(12) + 2; 
@@ -98,18 +110,16 @@ class _Level9PageState extends State<Level9Page> {
       correctAnswer = result;
 
     } else {
-      // Tipe 4 (BARU): Penjumlahan dengan Pembagian (Prioritas)
-      // A + B : C  -> Anak harus hitung B:C dulu!
-      c = random.nextInt(5) + 2;        // Pembagi (2-6)
-      int hasilBagi = random.nextInt(10) + 2; // Hasil bagi (2-11)
-      b = c * hasilBagi;                // B kelipatan C
-      a = random.nextInt(20) + 10;      // Angka depan
+      // A + B : C (Prioritas)
+      c = random.nextInt(5) + 2;        
+      int hasilBagi = random.nextInt(10) + 2; 
+      b = c * hasilBagi;                
+      a = random.nextInt(20) + 10;      
       
       question = "$a + $b : $c";
       correctAnswer = a + hasilBagi;
     }
 
-    // Generate Opsi Jawaban
     Set<int> optionsSet = {correctAnswer};
     while (optionsSet.length < 4) {
       int offset = random.nextInt(5) + 1;
@@ -125,7 +135,6 @@ class _Level9PageState extends State<Level9Page> {
     if (isGameFinished || _isStunned) return; 
 
     if (selectedAnswer == correctAnswer) {
-      // BENAR
       setState(() {
         bossHealth -= userDamage; 
       });
@@ -138,7 +147,6 @@ class _Level9PageState extends State<Level9Page> {
         ),
       );
 
-      // Cek Menang
       if (bossHealth <= 0.05) {
         setState(() {
           bossHealth = 0;
@@ -154,7 +162,6 @@ class _Level9PageState extends State<Level9Page> {
       }
 
     } else {
-      // SALAH -> Kena Stun (Pusing kena pukul)
       setState(() {
         _isStunned = true; 
       });
@@ -213,7 +220,7 @@ class _Level9PageState extends State<Level9Page> {
     );
   }
 
-  // --- POPUP KEMENANGAN ---
+  // --- WIN DIALOG (UPDATE FIREBASE) ---
   void _showWinDialog() {
     showDialog(
       context: context,
@@ -283,11 +290,15 @@ class _Level9PageState extends State<Level9Page> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        // Tombol Peta
+                        // TOMBOL PETA
                         InkWell(
-                          onTap: () {
-                            Navigator.pop(context); // Tutup Dialog
-                            Navigator.pop(context); // Balik ke Peta
+                          onTap: () async {
+                            // Update Level ke 10
+                            await _unlockNextLevel();
+
+                            if (!context.mounted) return;
+                            Navigator.pop(context); 
+                            Navigator.pop(context); 
                           },
                           child: Column(
                             children: [
@@ -301,14 +312,19 @@ class _Level9PageState extends State<Level9Page> {
                             ],
                           ),
                         ),
-                        // Tombol Stage Berikutnya (Ke Level 10)
+
+                        // TOMBOL STAGE BERIKUTNYA (MENUJU LEVEL 10)
                         InkWell(
-                          onTap: () {
-                             Navigator.pop(context); 
-                             Navigator.pushReplacement(
-                               context, 
-                               MaterialPageRoute(builder: (context) => const Level10Page())
-                             );
+                          onTap: () async {
+                            // Update Level ke 10
+                            await _unlockNextLevel();
+
+                            if (!context.mounted) return;
+                            Navigator.pop(context); 
+                            Navigator.pushReplacement(
+                              context, 
+                              MaterialPageRoute(builder: (context) => const Level10Page())
+                            );
                           },
                           child: Column(
                             children: [
@@ -408,13 +424,13 @@ class _Level9PageState extends State<Level9Page> {
                                 border: Border.all(color: Colors.black54),
                               ),
                             ),
-                            // Isi Darah (Hijau Kaktus)
+                            // Isi Darah (Warna Merah Tinju)
                             FractionallySizedBox(
                               widthFactor: bossHealth > 0 ? bossHealth : 0, 
                               child: Container(
                                 height: 14,
                                 decoration: BoxDecoration(
-                                  color: Colors.greenAccent[700], // Warna Kaktus
+                                  color: Colors.redAccent[700], // Warna Merah Agresif
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                               ),
@@ -444,7 +460,7 @@ class _Level9PageState extends State<Level9Page> {
                     margin: const EdgeInsets.only(bottom: 20),
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                     decoration: BoxDecoration(
-                      color: Colors.red.withOpacity(0.8), // Efek Pukulan
+                      color: Colors.red.withOpacity(0.8),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(color: Colors.white, width: 2),
                     ),
@@ -465,8 +481,8 @@ class _Level9PageState extends State<Level9Page> {
                           'assets/images/mc.png',
                           height: 150, 
                           fit: BoxFit.contain, 
-                          // color: _isStunned ? Colors.red[200] : null, // Merah memar
-                          // colorBlendMode: _isStunned ? BlendMode.modulate : null,
+                          color: _isStunned ? Colors.red[200] : null, // Memar
+                          colorBlendMode: _isStunned ? BlendMode.modulate : null,
                         ),
                       ),
                       
@@ -476,7 +492,7 @@ class _Level9PageState extends State<Level9Page> {
                       Flexible(
                         child: Image.asset(
                           'assets/region_2/monster_lvl_9.png', 
-                          height: 170, // Sedikit lebih tinggi karena petinju
+                          height: 170, // Lebih tinggi
                           fit: BoxFit.contain,
                         ),
                       ),
@@ -494,9 +510,9 @@ class _Level9PageState extends State<Level9Page> {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.green[800]!, width: 2), // Border hijau kaktus
+                    border: Border.all(color: Colors.red[800]!, width: 2), // Border merah
                     boxShadow: [
-                      BoxShadow(color: Colors.green.withOpacity(0.2), blurRadius: 10, offset: const Offset(0, 5))
+                      BoxShadow(color: Colors.red.withOpacity(0.2), blurRadius: 10, offset: const Offset(0, 5))
                     ],
                   ),
                   child: Text(

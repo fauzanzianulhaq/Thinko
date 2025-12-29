@@ -1,6 +1,8 @@
 import 'dart:async'; // Untuk Timer
 import 'dart:math';  // Untuk Random Soal
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // Tambahan Wajib
+import 'package:cloud_firestore/cloud_firestore.dart'; // Tambahan Wajib
 import 'level_2_page.dart'; 
 
 class Level1Page extends StatefulWidget {
@@ -12,15 +14,15 @@ class Level1Page extends StatefulWidget {
 
 class _Level1PageState extends State<Level1Page> {
   // --- KONFIGURASI LEVEL 1 (EASY MODE) ---
-  final int enemyAttackSpeedMs = 2000; // Musuh nyerang lambat (tiap 2 detik)
-  final int enemyDamage = 2;           // Damage musuh kecil
-  final double userDamage = 0.25;      // Damage user besar (Cukup 4x benar untuk menang)
+  final int enemyAttackSpeedMs = 2000; 
+  final int enemyDamage = 2;           
+  final double userDamage = 0.25;      
 
   // --- STATE GAME ---
   int userHealth = 100;
   double bossHealth = 1.0; 
   Timer? _enemyAttackTimer;
-  bool _isStunned = false; // Status apakah sedang kena stun
+  bool _isStunned = false; 
 
   // --- DATA SOAL DINAMIS ---
   String question = "";
@@ -30,14 +32,32 @@ class _Level1PageState extends State<Level1Page> {
   @override
   void initState() {
     super.initState();
-    _generateQuestion(); // Buat soal pertama
-    _startEnemyAttack(); // Mulai serangan musuh otomatis
+    _generateQuestion(); 
+    _startEnemyAttack(); 
   }
 
   @override
   void dispose() {
-    _enemyAttackTimer?.cancel(); // Matikan timer saat keluar halaman
+    _enemyAttackTimer?.cancel(); 
     super.dispose();
+  }
+
+  // --- FUNGSI UPDATE LEVEL KE FIREBASE (PENTING!) ---
+  Future<void> _unlockNextLevel() async {
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      DocumentReference userDoc = FirebaseFirestore.instance.collection('users').doc(user.uid);
+      
+      // Ambil data level sekarang dulu
+      DocumentSnapshot snapshot = await userDoc.get();
+      int currentDbLevel = snapshot.get('level') ?? 1;
+
+      // HANYA Update jika level di database masih 1
+      // (Supaya kalau user iseng main ulang level 1, levelnya gak turun)
+      if (currentDbLevel < 2) {
+        await userDoc.update({'level': 2}); 
+      }
+    }
   }
 
   // --- LOGIKA MUSUH MENYERANG OTOMATIS ---
@@ -48,7 +68,6 @@ class _Level1PageState extends State<Level1Page> {
           userHealth -= enemyDamage;
         });
 
-        // Cek Game Over (HP User Habis)
         if (userHealth <= 0) {
           userHealth = 0;
           timer.cancel();
@@ -58,34 +77,34 @@ class _Level1PageState extends State<Level1Page> {
     });
   }
 
-  // --- LOGIKA GENERATE SOAL MATEMATIKA (MUDAH: Angka 1-20) ---
+  // --- LOGIKA GENERATE SOAL ---
   void _generateQuestion() {
     Random random = Random();
-    int operator = random.nextInt(4); // 0: +, 1: -, 2: *, 3: /
+    int operator = random.nextInt(4); 
     int a, b;
 
     switch (operator) {
-      case 0: // Penjumlahan (Angka 1-10)
+      case 0: // Penjumlahan
         a = random.nextInt(10) + 1; 
         b = random.nextInt(10) + 1;
         question = "$a + $b";
         correctAnswer = a + b;
         break;
-      case 1: // Pengurangan (Hasil Positif)
-        a = random.nextInt(10) + 5; // 5-14
-        b = random.nextInt(a) + 1;  // Pastikan b < a
+      case 1: // Pengurangan
+        a = random.nextInt(10) + 5; 
+        b = random.nextInt(a) + 1;  
         question = "$a - $b";
         correctAnswer = a - b;
         break;
-      case 2: // Perkalian (Angka 1-5 saja)
+      case 2: // Perkalian
         a = random.nextInt(5) + 1;
         b = random.nextInt(5) + 1;
         question = "$a × $b";
         correctAnswer = a * b;
         break;
-      case 3: // Pembagian (Sangat Sederhana)
-        b = random.nextInt(4) + 2; // Pembagi 2-5
-        int result = random.nextInt(5) + 1; // Hasil 1-5
+      case 3: // Pembagian
+        b = random.nextInt(4) + 2; 
+        int result = random.nextInt(5) + 1; 
         a = b * result; 
         question = "$a : $b";
         correctAnswer = result;
@@ -94,24 +113,22 @@ class _Level1PageState extends State<Level1Page> {
         a = 1; b = 1; question = "1+1"; correctAnswer = 2;
     }
 
-    // Generate Opsi Jawaban (1 Benar, 3 Salah)
     Set<int> optionsSet = {correctAnswer};
     while (optionsSet.length < 4) {
-      int offset = random.nextInt(3) + 1; // Jawaban salah beda dikit (1-3 angka)
+      int offset = random.nextInt(3) + 1; 
       optionsSet.add(random.nextBool() ? correctAnswer + offset : correctAnswer - offset);
     }
     options = optionsSet.toList()..shuffle();
     
-    // Pastikan UI terupdate
     if (mounted) setState(() {});
   }
 
   // --- CEK JAWABAN ---
   void checkAnswer(int selectedAnswer) {
-    if (_isStunned) return; // Kalau lagi stun, tombol gabisa diklik
+    if (_isStunned) return; 
 
     if (selectedAnswer == correctAnswer) {
-      // JAWABAN BENAR
+      // BENAR
       setState(() {
         bossHealth -= userDamage; 
       });
@@ -124,19 +141,18 @@ class _Level1PageState extends State<Level1Page> {
         ),
       );
 
-      // Cek Menang
       if (bossHealth <= 0.05) { 
         bossHealth = 0;
-        _enemyAttackTimer?.cancel(); // Stop serangan musuh
-        _showWinDialog();
+        _enemyAttackTimer?.cancel(); 
+        _showWinDialog(); // Panggil Dialog Menang
       } else {
-        _generateQuestion(); // Ganti soal
+        _generateQuestion(); 
       }
 
     } else {
-      // JAWABAN SALAH -> Kena Stun
+      // SALAH
       setState(() {
-        _isStunned = true; // Aktifkan stun
+        _isStunned = true; 
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -147,12 +163,11 @@ class _Level1PageState extends State<Level1Page> {
         ),
       );
 
-      // Timer Stun (Dikurangi jadi 2 detik biar ga kelamaan)
       Future.delayed(const Duration(seconds: 2), () {
         if (mounted) {
           setState(() {
-            _isStunned = false; // Matikan stun
-            _generateQuestion(); // Ganti soal setelah stun selesai
+            _isStunned = false; 
+            _generateQuestion(); 
           });
         }
       });
@@ -171,14 +186,13 @@ class _Level1PageState extends State<Level1Page> {
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              Navigator.pop(context); // Kembali ke Peta
+              Navigator.pop(context); 
             },
             child: const Text("Keluar"),
           ),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              // Reset Game
               setState(() {
                 userHealth = 100;
                 bossHealth = 1.0;
@@ -194,8 +208,11 @@ class _Level1PageState extends State<Level1Page> {
     );
   }
 
-  // --- POPUP KEMENANGAN ---
+  // --- POPUP KEMENANGAN (BAGIAN PENTING YANG DIUBAH) ---
   void _showWinDialog() {
+    // Panggil fungsi update level saat dialog muncul (biar aman)
+    // Atau bisa dipanggil saat tombol diklik (seperti di bawah)
+    
     showDialog(
       context: context,
       barrierDismissible: false, 
@@ -207,7 +224,6 @@ class _Level1PageState extends State<Level1Page> {
             clipBehavior: Clip.none, 
             alignment: Alignment.center,
             children: [
-              // 1. KOTAK KONTEN PUTIH
               Container(
                 width: double.infinity,
                 margin: const EdgeInsets.only(top: 40), 
@@ -247,10 +263,15 @@ class _Level1PageState extends State<Level1Page> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
+                        // TOMBOL PETA (BACK TO HOME)
                         InkWell(
-                          onTap: () {
-                            Navigator.pop(context); 
-                            Navigator.pop(context); 
+                          onTap: () async {
+                            // 1. Update Level ke Firebase
+                            await _unlockNextLevel(); 
+                            
+                            if (!context.mounted) return;
+                            Navigator.pop(context); // Tutup Dialog
+                            Navigator.pop(context); // Kembali ke Home
                           },
                           child: Column(
                             children: [
@@ -264,9 +285,16 @@ class _Level1PageState extends State<Level1Page> {
                             ],
                           ),
                         ),
+
+                        // TOMBOL STAGE BERIKUTNYA (NEXT LEVEL)
                         InkWell(
-                          onTap: () {
-                            Navigator.pop(context); 
+                          onTap: () async {
+                            // 1. Update Level ke Firebase
+                            await _unlockNextLevel(); 
+
+                            if (!context.mounted) return;
+                            Navigator.pop(context); // Tutup Dialog
+                            // Pindah ke Level 2
                             Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const Level2Page()));
                           },
                           child: Column(
@@ -286,7 +314,6 @@ class _Level1PageState extends State<Level1Page> {
                   ],
                 ),
               ),
-              // 2. KEPALA ROBOT
               Positioned(
                 top: 0, 
                 child: Container(
@@ -311,7 +338,7 @@ class _Level1PageState extends State<Level1Page> {
     return Scaffold(
       body: Stack(
         children: [
-          // 1. BACKGROUND
+          // BACKGROUND
           Container(
             decoration: const BoxDecoration(
               image: DecorationImage(
@@ -321,7 +348,7 @@ class _Level1PageState extends State<Level1Page> {
             ),
           ),
 
-          // 2. UI UTAMA
+          // UI UTAMA
           SafeArea(
             child: Column(
               children: [
@@ -336,11 +363,11 @@ class _Level1PageState extends State<Level1Page> {
                         backgroundColor: Colors.white,
                       ),
                       const SizedBox(width: 8),
-                      // HP User (Akan berkurang otomatis)
+                      // HP User
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                         decoration: BoxDecoration(
-                          color: userHealth < 30 ? Colors.red : Colors.green, // Merah jika kritis
+                          color: userHealth < 30 ? Colors.red : Colors.green, 
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(color: Colors.white, width: 2),
                         ),
@@ -391,7 +418,7 @@ class _Level1PageState extends State<Level1Page> {
 
                 const Spacer(),
 
-                // VISUAL STUN (Jika kena stun, tampilkan teks)
+                // VISUAL STUN
                 if (_isStunned)
                   Container(
                     margin: const EdgeInsets.only(bottom: 20),
@@ -416,7 +443,7 @@ class _Level1PageState extends State<Level1Page> {
                           'assets/images/mc.png',
                           height: 150, 
                           fit: BoxFit.contain, 
-                          color: _isStunned ? Colors.grey : null, // Efek visual karakter abu-abu saat stun
+                          color: _isStunned ? Colors.grey : null, 
                           colorBlendMode: _isStunned ? BlendMode.saturation : null,
                         ),
                       ),
@@ -447,7 +474,7 @@ class _Level1PageState extends State<Level1Page> {
                     ],
                   ),
                   child: Text(
-                    question, // Soal dinamis
+                    question, 
                     textAlign: TextAlign.center,
                     style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.black87),
                   ),
@@ -464,12 +491,12 @@ class _Level1PageState extends State<Level1Page> {
                       return GestureDetector(
                         onTap: () => checkAnswer(option),
                         child: Opacity(
-                          opacity: _isStunned ? 0.5 : 1.0, // Tombol agak transparan kalau stun
+                          opacity: _isStunned ? 0.5 : 1.0, 
                           child: Container(
                             width: 65,
                             height: 65,
                             decoration: BoxDecoration(
-                              color: _isStunned ? Colors.grey[400] : const Color(0xFFF0F0F0), // Warna abu jika stun
+                              color: _isStunned ? Colors.grey[400] : const Color(0xFFF0F0F0), 
                               borderRadius: BorderRadius.circular(12),
                               boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: const Offset(0, 4))],
                             ),

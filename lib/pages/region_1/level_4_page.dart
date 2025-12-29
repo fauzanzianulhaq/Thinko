@@ -1,8 +1,10 @@
 import 'dart:async'; // Timer
 import 'dart:math';  // Random
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart'; // Wajib untuk fix navigasi
-import 'level_5_page.dart'; // Pastikan kamu sudah buat file level 5
+import 'package:flutter/scheduler.dart'; 
+import 'package:firebase_auth/firebase_auth.dart'; // Wajib
+import 'package:cloud_firestore/cloud_firestore.dart'; // Wajib
+import 'level_5_page.dart'; // Pastikan sudah ada file level 5
 
 class Level4Page extends StatefulWidget {
   const Level4Page({super.key});
@@ -13,9 +15,9 @@ class Level4Page extends StatefulWidget {
 
 class _Level4PageState extends State<Level4Page> {
   // --- KONFIGURASI LEVEL 4 (THEMA ES / ICE) ---
-  final int enemyAttackSpeedMs = 1200; // Serangan tiap 1.2 detik
-  final int enemyDamage = 7;           // Damage Golem Es sakit!
-  final double userDamage = 0.2;       // Butuh 5x benar untuk menang
+  final int enemyAttackSpeedMs = 1200; 
+  final int enemyDamage = 7;           
+  final double userDamage = 0.2;       
 
   // --- STATE GAME ---
   int userHealth = 100;
@@ -24,7 +26,7 @@ class _Level4PageState extends State<Level4Page> {
   bool _isStunned = false; 
   bool isGameFinished = false;
 
-  // --- DATA SOAL DINAMIS ---
+  // --- DATA SOAL ---
   String question = "";
   int correctAnswer = 0;
   List<int> options = [];
@@ -40,6 +42,22 @@ class _Level4PageState extends State<Level4Page> {
   void dispose() {
     _enemyAttackTimer?.cancel(); 
     super.dispose();
+  }
+
+  // --- FUNGSI UPDATE LEVEL KE FIREBASE (TARGET: LEVEL 5) ---
+  Future<void> _unlockNextLevel() async {
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      DocumentReference userDoc = FirebaseFirestore.instance.collection('users').doc(user.uid);
+      
+      DocumentSnapshot snapshot = await userDoc.get();
+      int currentDbLevel = snapshot.get('level') ?? 1;
+
+      // HANYA Update jika level di database masih di bawah 5
+      if (currentDbLevel < 5) {
+        await userDoc.update({'level': 5}); // BUKA LEVEL 5
+      }
+    }
   }
 
   // --- LOGIKA MUSUH MENYERANG ---
@@ -62,61 +80,51 @@ class _Level4PageState extends State<Level4Page> {
   // --- LOGIKA SOAL (Level 4: Tanda Kurung / Prioritas) ---
   void _generateQuestion() {
     Random random = Random();
-    // Sekarang ada 4 tipe soal:
-    // 0: (A+B)xC
-    // 1: (A-B):C
-    // 2: (A+B)-C  <-- Baru
-    // 3: A-(B+C)  <-- Baru
     int type = random.nextInt(4); 
     int a, b, c;
 
     if (type == 0) {
-      // TIPE 1: Perkalian dengan Penjumlahan dalam kurung
       // (A + B) x C
       a = random.nextInt(10) + 1; 
       b = random.nextInt(10) + 1; 
-      c = random.nextInt(5) + 2;  // Pengali 2-6
+      c = random.nextInt(5) + 2;  
       
       question = "($a + $b) × $c";
       correctAnswer = (a + b) * c;
 
     } else if (type == 1) {
-      // TIPE 2: Pembagian dengan Pengurangan dalam kurung
       // (A - B) : C
-      c = random.nextInt(5) + 2;       // Pembagi
+      c = random.nextInt(5) + 2;       
       int hasil = random.nextInt(10) + 2; 
-      int selisih = c * hasil;         // Ini nilai (A-B)
+      int selisih = c * hasil;         
       
       b = random.nextInt(10) + 1;
-      a = selisih + b;                 // Jadi A - B = selisih
+      a = selisih + b;                 
       
       question = "($a - $b) : $c";
       correctAnswer = hasil;
 
     } else if (type == 2) {
-      // TIPE 3 (BARU): Penjumlahan dalam kurung lalu dikurang
       // (A + B) - C
       a = random.nextInt(20) + 10; 
       b = random.nextInt(20) + 5; 
       int sum = a + b;
-      c = random.nextInt(sum - 5) + 1; // Pastikan hasil positif
+      c = random.nextInt(sum - 5) + 1; 
       
       question = "($a + $b) - $c";
       correctAnswer = sum - c;
 
     } else {
-      // TIPE 4 (BARU): Dikurang hasil penjumlahan dalam kurung
-      // A - (B + C)  --> Ini mengajarkan prioritas kurung
+      // A - (B + C)
       b = random.nextInt(15) + 5;
       c = random.nextInt(15) + 5;
       int sumInside = b + c;
-      a = sumInside + random.nextInt(20) + 5; // A harus lebih besar dari (B+C)
+      a = sumInside + random.nextInt(20) + 5; 
       
       question = "$a - ($b + $c)";
       correctAnswer = a - sumInside;
     }
 
-    // Generate Opsi Jawaban
     Set<int> optionsSet = {correctAnswer};
     while (optionsSet.length < 4) {
       int offset = random.nextInt(5) + 1;
@@ -132,7 +140,6 @@ class _Level4PageState extends State<Level4Page> {
     if (isGameFinished || _isStunned) return; 
 
     if (selectedAnswer == correctAnswer) {
-      // BENAR
       setState(() {
         bossHealth -= userDamage; 
       });
@@ -145,7 +152,6 @@ class _Level4PageState extends State<Level4Page> {
         ),
       );
 
-      // Cek Menang
       if (bossHealth <= 0.05) {
         setState(() {
           bossHealth = 0;
@@ -161,7 +167,6 @@ class _Level4PageState extends State<Level4Page> {
       }
 
     } else {
-      // SALAH -> Kena Stun (Beku)
       setState(() {
         _isStunned = true; 
       });
@@ -169,7 +174,7 @@ class _Level4PageState extends State<Level4Page> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text("Salah! Kamu membeku (Stun)!"),
-          backgroundColor: Colors.cyan, // Warna biru es
+          backgroundColor: Colors.cyan, 
           duration: Duration(milliseconds: 500),
         ),
       );
@@ -220,7 +225,7 @@ class _Level4PageState extends State<Level4Page> {
     );
   }
 
-  // --- POPUP KEMENANGAN ---
+  // --- WIN DIALOG (UPDATE FIREBASE) ---
   void _showWinDialog() {
     showDialog(
       context: context,
@@ -279,7 +284,7 @@ class _Level4PageState extends State<Level4Page> {
                         children: [
                           Icon(Icons.stars_rounded, color: Colors.amber, size: 36),
                           SizedBox(width: 8),
-                          Text("15", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+                          Text("20", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
                         ],
                       ),
                     ),
@@ -290,11 +295,15 @@ class _Level4PageState extends State<Level4Page> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        // Tombol Peta
+                        // TOMBOL PETA
                         InkWell(
-                          onTap: () {
-                            Navigator.pop(context); // Tutup Dialog
-                            Navigator.pop(context); // Balik ke Peta
+                          onTap: () async {
+                            // Update Level ke 5
+                            await _unlockNextLevel();
+
+                            if (!context.mounted) return;
+                            Navigator.pop(context); 
+                            Navigator.pop(context); 
                           },
                           child: Column(
                             children: [
@@ -308,14 +317,19 @@ class _Level4PageState extends State<Level4Page> {
                             ],
                           ),
                         ),
-                        // Tombol Stage Berikutnya (MENUJU LEVEL 5)
+
+                        // TOMBOL STAGE BERIKUTNYA (MENUJU LEVEL 5)
                         InkWell(
-                          onTap: () {
-                             Navigator.pop(context); 
-                             Navigator.pushReplacement(
-                               context, 
-                               MaterialPageRoute(builder: (context) => const Level5Page())
-                             );
+                          onTap: () async {
+                            // Update Level ke 5
+                            await _unlockNextLevel();
+
+                            if (!context.mounted) return;
+                            Navigator.pop(context); 
+                            Navigator.pushReplacement(
+                              context, 
+                              MaterialPageRoute(builder: (context) => const Level5Page())
+                            );
                           },
                           child: Column(
                             children: [
@@ -325,7 +339,7 @@ class _Level4PageState extends State<Level4Page> {
                                 child: Icon(Icons.skip_next_rounded, color: Colors.green[700], size: 30),
                               ),
                               const SizedBox(height: 4),
-                              const Text("Stage berikutnya", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                              const Text("Level 5", style: TextStyle(fontSize: 12, color: Colors.grey)),
                             ],
                           ),
                         ),
@@ -360,11 +374,11 @@ class _Level4PageState extends State<Level4Page> {
     return Scaffold(
       body: Stack(
         children: [
-          // BACKGROUND (Ganti ke Background Es jika ada, misal: snow.png)
+          // BACKGROUND (Custom Ice Background bisa dipasang disini)
           Container(
             decoration: const BoxDecoration(
               image: DecorationImage(
-                image: AssetImage('assets/images/hutan.png'), // Atau ganti 'ice_bg.png'
+                image: AssetImage('assets/images/hutan.png'), 
                 fit: BoxFit.cover,
               ),
             ),
@@ -387,7 +401,7 @@ class _Level4PageState extends State<Level4Page> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                         decoration: BoxDecoration(
-                          color: userHealth < 30 ? Colors.red : Colors.green,
+                          color: Colors.green,
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(color: Colors.white, width: 2),
                         ),
@@ -398,7 +412,7 @@ class _Level4PageState extends State<Level4Page> {
                       ),
                       const Spacer(),
                       
-                      // BOSS HP BAR (Custom warna Biru Es)
+                      // BOSS HP BAR (Custom Ice Color)
                       Expanded(
                         flex: 4,
                         child: Stack(
@@ -417,8 +431,7 @@ class _Level4PageState extends State<Level4Page> {
                               child: Container(
                                 height: 14,
                                 decoration: BoxDecoration(
-                                  // Warna HP Boss jadi Biru Muda (Es)
-                                  color: Colors.lightBlueAccent, 
+                                  color: Colors.lightBlueAccent, // Biru Es
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                               ),
@@ -428,7 +441,7 @@ class _Level4PageState extends State<Level4Page> {
                               child: CircleAvatar(
                                 radius: 16,
                                 backgroundColor: Colors.white,
-                                // Pastikan aset monster level 4 (Golem Es) ada
+                                // Pastikan gambar boss level 4 ada
                                 backgroundImage: AssetImage('assets/images/monster_level_4.png'), 
                               ),
                             ),
@@ -438,9 +451,10 @@ class _Level4PageState extends State<Level4Page> {
                     ],
                   ),
                 ),
+
                 const Spacer(),
-                
-                // VISUAL STUN (Efek Beku)
+
+                // STUN ALERT
                 if (_isStunned)
                   Container(
                     margin: const EdgeInsets.only(bottom: 20),
@@ -454,7 +468,7 @@ class _Level4PageState extends State<Level4Page> {
                       style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                   ),
 
-                // ARENA
+                // ARENA KARAKTER
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Row(
@@ -466,7 +480,7 @@ class _Level4PageState extends State<Level4Page> {
                           'assets/images/mc.png',
                           height: 150,
                           fit: BoxFit.contain,
-                          // Efek beku visual pada karakter
+                          // Efek Beku Visual (Optional)
                           // color: _isStunned ? Colors.cyanAccent : null,
                           // colorBlendMode: _isStunned ? BlendMode.modulate : null,
                         ),
@@ -474,8 +488,8 @@ class _Level4PageState extends State<Level4Page> {
                       const SizedBox(width: 10),
                       Flexible(
                         child: Image.asset(
-                          'assets/images/monster_level_4.png', // Golem Es
-                          height: 180, 
+                          'assets/images/monster_level_4.png', 
+                          height: 180,
                           fit: BoxFit.contain,
                         ),
                       ),
@@ -484,7 +498,7 @@ class _Level4PageState extends State<Level4Page> {
                 ),
                 const SizedBox(height: 20),
                 
-                // SOAL (Kotak Biru Es)
+                // SOAL
                 Container(
                   margin: const EdgeInsets.symmetric(horizontal: 24),
                   padding: const EdgeInsets.symmetric(vertical: 16),
@@ -492,7 +506,7 @@ class _Level4PageState extends State<Level4Page> {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.lightBlue, width: 2), // Border biru
+                    border: Border.all(color: Colors.lightBlue, width: 2),
                     boxShadow: [
                       BoxShadow(color: Colors.blue.withOpacity(0.2), blurRadius: 10, offset: Offset(0, 5))
                     ],

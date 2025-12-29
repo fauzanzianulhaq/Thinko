@@ -1,7 +1,9 @@
 import 'dart:async'; // Timer
 import 'dart:math';  // Random
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart'; // Wajib untuk fix navigasi
+import 'package:flutter/scheduler.dart'; 
+import 'package:firebase_auth/firebase_auth.dart'; // Wajib
+import 'package:cloud_firestore/cloud_firestore.dart'; // Wajib
 import 'level_6_page.dart'; // Pastikan sudah ada file level 6
 
 class Level5Page extends StatefulWidget {
@@ -13,10 +15,9 @@ class Level5Page extends StatefulWidget {
 
 class _Level5PageState extends State<Level5Page> {
   // --- KONFIGURASI LEVEL 5 (TEMA: HUTAN BERACUN) ---
-  // Musuh: Tanaman Karnivora (Piranha Plant)
-  final int enemyAttackSpeedMs = 1500; // Serangan cepat tiap 1 detik
-  final int enemyDamage = 7;          // Gigitannya sangat sakit!
-  final double userDamage = 0.2;       // Butuh 5x benar untuk menang
+  final int enemyAttackSpeedMs = 1500; 
+  final int enemyDamage = 7;           
+  final double userDamage = 0.2;       
 
   // --- STATE GAME ---
   int userHealth = 100;
@@ -25,7 +26,7 @@ class _Level5PageState extends State<Level5Page> {
   bool _isStunned = false; 
   bool isGameFinished = false;
 
-  // --- DATA SOAL DINAMIS ---
+  // --- DATA SOAL ---
   String question = "";
   int correctAnswer = 0;
   List<int> options = [];
@@ -41,6 +42,22 @@ class _Level5PageState extends State<Level5Page> {
   void dispose() {
     _enemyAttackTimer?.cancel(); 
     super.dispose();
+  }
+
+  // --- FUNGSI UPDATE LEVEL KE FIREBASE (TARGET: LEVEL 6) ---
+  Future<void> _unlockNextLevel() async {
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      DocumentReference userDoc = FirebaseFirestore.instance.collection('users').doc(user.uid);
+      
+      DocumentSnapshot snapshot = await userDoc.get();
+      int currentDbLevel = snapshot.get('level') ?? 1;
+
+      // HANYA Update jika level di database masih di bawah 6
+      if (currentDbLevel < 6) {
+        await userDoc.update({'level': 6}); // BUKA LEVEL 6
+      }
+    }
   }
 
   // --- LOGIKA MUSUH MENYERANG ---
@@ -61,33 +78,30 @@ class _Level5PageState extends State<Level5Page> {
   }
 
   // --- LOGIKA SOAL (Level 5: Operasi Campuran + Angka Puluhan) ---
-  // Contoh: 30 + 25 - 10 atau (15 x 2) + 5
   void _generateQuestion() {
     Random random = Random();
-    int type = random.nextInt(3); // 0: A+B-C, 1: (A-B)xC, 2: A+(BxC)
+    int type = random.nextInt(3); 
     int a, b, c;
 
     if (type == 0) {
-      // Penjumlahan & Pengurangan Angka Besar
-      a = random.nextInt(40) + 20; // 20-59
-      b = random.nextInt(30) + 10; // 10-39
-      c = random.nextInt(20) + 5;  // 5-24
+      // A + B - C
+      a = random.nextInt(40) + 20; 
+      b = random.nextInt(30) + 10; 
+      c = random.nextInt(20) + 5;  
       
       question = "$a + $b - $c";
       correctAnswer = a + b - c;
 
     } else if (type == 1) {
-      // Pengurangan dalam kurung lalu dikali
       // (A - B) x C
       a = random.nextInt(20) + 10; 
-      b = random.nextInt(a - 5) + 1; // Pastikan (A-B) positif
-      c = random.nextInt(5) + 2;     // Pengali kecil
+      b = random.nextInt(a - 5) + 1; 
+      c = random.nextInt(5) + 2;     
       
       question = "($a - $b) × $c";
       correctAnswer = (a - b) * c;
 
     } else {
-      // Penjumlahan dengan Perkalian (Prioritas)
       // A + (B x C)
       a = random.nextInt(50) + 10;
       b = random.nextInt(10) + 2;
@@ -97,7 +111,6 @@ class _Level5PageState extends State<Level5Page> {
       correctAnswer = a + (b * c);
     }
 
-    // Generate Opsi Jawaban
     Set<int> optionsSet = {correctAnswer};
     while (optionsSet.length < 4) {
       int offset = random.nextInt(10) + 1;
@@ -113,20 +126,18 @@ class _Level5PageState extends State<Level5Page> {
     if (isGameFinished || _isStunned) return; 
 
     if (selectedAnswer == correctAnswer) {
-      // BENAR
       setState(() {
         bossHealth -= userDamage; 
       });
       
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("Tebasan Telak! Tanaman Karnivora terluka!"), // Text disesuaikan
+          content: Text("Tebasan Telak! Tanaman Karnivora terluka!"),
           backgroundColor: Colors.green,
           duration: Duration(milliseconds: 300),
         ),
       );
 
-      // Cek Menang
       if (bossHealth <= 0.05) {
         setState(() {
           bossHealth = 0;
@@ -142,15 +153,14 @@ class _Level5PageState extends State<Level5Page> {
       }
 
     } else {
-      // SALAH -> Kena Stun (Terjerat Akar)
       setState(() {
         _isStunned = true; 
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("Salah! Kamu terjerat akar tanaman!"), // Text disesuaikan
-          backgroundColor: Colors.brown, // Warna akar/tanah
+          content: Text("Salah! Kamu terjerat akar tanaman!"),
+          backgroundColor: Colors.brown, 
           duration: Duration(milliseconds: 500),
         ),
       );
@@ -173,7 +183,7 @@ class _Level5PageState extends State<Level5Page> {
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         title: const Text("Game Over! 🥀", style: TextStyle(color: Colors.red)),
-        content: const Text("Kamu dilahap oleh Tanaman Karnivora!"), // Text disesuaikan
+        content: const Text("Kamu dilahap oleh Tanaman Karnivora!"),
         actions: [
           TextButton(
             onPressed: () {
@@ -201,7 +211,7 @@ class _Level5PageState extends State<Level5Page> {
     );
   }
 
-  // --- POPUP KEMENANGAN ---
+  // --- WIN DIALOG (UPDATE FIREBASE) ---
   void _showWinDialog() {
     showDialog(
       context: context,
@@ -242,7 +252,7 @@ class _Level5PageState extends State<Level5Page> {
                     const SizedBox(height: 10),
                     
                     const Text(
-                      "Hebat! Tanaman Karnivora berhasil ditebang!", // Text disesuaikan
+                      "Hebat! Tanaman Karnivora berhasil ditebang!",
                       textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 14, color: Colors.black54),
                     ),
@@ -260,7 +270,7 @@ class _Level5PageState extends State<Level5Page> {
                         children: [
                           Icon(Icons.stars_rounded, color: Colors.amber, size: 36),
                           SizedBox(width: 8),
-                          Text("20", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+                          Text("25", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
                         ],
                       ),
                     ),
@@ -271,11 +281,15 @@ class _Level5PageState extends State<Level5Page> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        // Tombol Peta
+                        // TOMBOL PETA
                         InkWell(
-                          onTap: () {
-                            Navigator.pop(context); // Tutup Dialog
-                            Navigator.pop(context); // Balik ke Peta
+                          onTap: () async {
+                            // Update Level ke 6
+                            await _unlockNextLevel();
+
+                            if (!context.mounted) return;
+                            Navigator.pop(context); 
+                            Navigator.pop(context); 
                           },
                           child: Column(
                             children: [
@@ -289,14 +303,19 @@ class _Level5PageState extends State<Level5Page> {
                             ],
                           ),
                         ),
-                        // Tombol Stage Berikutnya (MENUJU LEVEL 6)
+
+                        // TOMBOL STAGE BERIKUTNYA (MENUJU LEVEL 6)
                         InkWell(
-                          onTap: () {
-                             Navigator.pop(context); 
-                             Navigator.pushReplacement(
-                               context, 
-                               MaterialPageRoute(builder: (context) => const Level6Page())
-                             );
+                          onTap: () async {
+                            // Update Level ke 6
+                            await _unlockNextLevel();
+
+                            if (!context.mounted) return;
+                            Navigator.pop(context); 
+                            Navigator.pushReplacement(
+                              context, 
+                              MaterialPageRoute(builder: (context) => const Level6Page())
+                            );
                           },
                           child: Column(
                             children: [
@@ -306,7 +325,7 @@ class _Level5PageState extends State<Level5Page> {
                                 child: Icon(Icons.skip_next_rounded, color: Colors.green[700], size: 30),
                               ),
                               const SizedBox(height: 4),
-                              const Text("Stage berikutnya", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                              const Text("Level 6", style: TextStyle(fontSize: 12, color: Colors.grey)),
                             ],
                           ),
                         ),
@@ -368,7 +387,7 @@ class _Level5PageState extends State<Level5Page> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                         decoration: BoxDecoration(
-                          color: userHealth < 30 ? Colors.red : Colors.green,
+                          color: Colors.green,
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(color: Colors.white, width: 2),
                         ),
@@ -398,8 +417,7 @@ class _Level5PageState extends State<Level5Page> {
                               child: Container(
                                 height: 14,
                                 decoration: BoxDecoration(
-                                  // Warna HP Boss jadi Hijau Tua
-                                  color: Colors.green[800], 
+                                  color: Colors.green[800], // Hijau Tua
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                               ),
@@ -409,7 +427,7 @@ class _Level5PageState extends State<Level5Page> {
                               child: CircleAvatar(
                                 radius: 16,
                                 backgroundColor: Colors.white,
-                                // Pastikan nama file monster level 5 sudah benar
+                                // Pastikan file gambar ada
                                 backgroundImage: AssetImage('assets/images/monster_level_5.png'), 
                               ),
                             ),
@@ -419,15 +437,16 @@ class _Level5PageState extends State<Level5Page> {
                     ],
                   ),
                 ),
+
                 const Spacer(),
-                
-                // VISUAL STUN (Efek Terjerat Akar)
+
+                // STUN ALERT
                 if (_isStunned)
                   Container(
                     margin: const EdgeInsets.only(bottom: 20),
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                     decoration: BoxDecoration(
-                      color: Colors.brown.withOpacity(0.8), // Warna Tanah/Akar
+                      color: Colors.brown.withOpacity(0.8), // Warna Tanah
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(color: Colors.white, width: 2),
                     ),
@@ -435,7 +454,7 @@ class _Level5PageState extends State<Level5Page> {
                       style: TextStyle(color: Colors.lightGreenAccent, fontWeight: FontWeight.bold)),
                   ),
 
-                // ARENA
+                // ARENA KARAKTER
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Row(
@@ -447,16 +466,16 @@ class _Level5PageState extends State<Level5Page> {
                           'assets/images/mc.png',
                           height: 150,
                           fit: BoxFit.contain,
-                          // Efek terjerat visual (kehijauan)
-                          color: _isStunned ? Colors.green[300] : null,
-                          colorBlendMode: _isStunned ? BlendMode.modulate : null,
+                          // Efek Terjerat (Optional)
+                          // color: _isStunned ? Colors.green[300] : null,
+                          // colorBlendMode: _isStunned ? BlendMode.modulate : null,
                         ),
                       ),
                       const SizedBox(width: 10),
                       Flexible(
                         child: Image.asset(
-                          'assets/images/monster_level_5.png', // Tanaman Karnivora
-                          height: 190, 
+                          'assets/images/monster_level_5.png', 
+                          height: 190,
                           fit: BoxFit.contain,
                         ),
                       ),
@@ -465,7 +484,7 @@ class _Level5PageState extends State<Level5Page> {
                 ),
                 const SizedBox(height: 20),
                 
-                // SOAL (Kotak Hijau Tua)
+                // SOAL
                 Container(
                   margin: const EdgeInsets.symmetric(horizontal: 24),
                   padding: const EdgeInsets.symmetric(vertical: 16),
@@ -473,7 +492,7 @@ class _Level5PageState extends State<Level5Page> {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.green[800]!, width: 2), // Border hijau tua
+                    border: Border.all(color: Colors.green[800]!, width: 2),
                     boxShadow: [
                       BoxShadow(color: Colors.green.withOpacity(0.2), blurRadius: 10, offset: Offset(0, 5))
                     ],

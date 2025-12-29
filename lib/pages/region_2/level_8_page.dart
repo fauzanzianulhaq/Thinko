@@ -1,8 +1,10 @@
 import 'dart:async'; // Timer
 import 'dart:math';  // Random
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart'; // Wajib untuk fix navigasi
-import 'level_9_page.dart'; // Pastikan file level 9 nanti dibuat
+import 'package:flutter/scheduler.dart'; 
+import 'package:firebase_auth/firebase_auth.dart'; // Wajib
+import 'package:cloud_firestore/cloud_firestore.dart'; // Wajib
+import 'level_9_page.dart'; // Pastikan file level 9 sudah disiapkan
 
 class Level8Page extends StatefulWidget {
   const Level8Page({super.key});
@@ -13,11 +15,9 @@ class Level8Page extends StatefulWidget {
 
 class _Level8PageState extends State<Level8Page> {
   // --- KONFIGURASI LEVEL 8 (REGION 2: GURUN) ---
-  // Musuh: Bola Duri Gurun (Tumbleweed)
-  // Karakteristik: Serangan cepat (menggelinding) dan menyakitkan (duri)
   final int enemyAttackSpeedMs = 1000;  // Serangan CEPAT (1detik)
-  final int enemyDamage = 8;           // Damage sedang tapi cepat
-  final double userDamage = 0.2;       // Butuh 5x benar untuk menang
+  final int enemyDamage = 8;           
+  final double userDamage = 0.2;       
 
   // --- STATE GAME ---
   int userHealth = 100;
@@ -26,7 +26,7 @@ class _Level8PageState extends State<Level8Page> {
   bool _isStunned = false; 
   bool isGameFinished = false;
 
-  // --- DATA SOAL DINAMIS ---
+  // --- DATA SOAL ---
   String question = "";
   int correctAnswer = 0;
   List<int> options = [];
@@ -42,6 +42,22 @@ class _Level8PageState extends State<Level8Page> {
   void dispose() {
     _enemyAttackTimer?.cancel(); 
     super.dispose();
+  }
+
+  // --- FUNGSI UPDATE LEVEL KE FIREBASE (TARGET: LEVEL 9) ---
+  Future<void> _unlockNextLevel() async {
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      DocumentReference userDoc = FirebaseFirestore.instance.collection('users').doc(user.uid);
+      
+      DocumentSnapshot snapshot = await userDoc.get();
+      int currentDbLevel = snapshot.get('level') ?? 1;
+
+      // HANYA Update jika level di database masih di bawah 9
+      if (currentDbLevel < 9) {
+        await userDoc.update({'level': 9}); // BUKA LEVEL 9
+      }
+    }
   }
 
   // --- LOGIKA MUSUH MENYERANG ---
@@ -85,15 +101,14 @@ class _Level8PageState extends State<Level8Page> {
       correctAnswer = (a * b) + c;
 
     } else {
-      // Pengurangan Angka Besar (Melatih fokus)
-      a = random.nextInt(50) + 50; // 50-99
-      b = random.nextInt(30) + 10; // 10-39
+      // Pengurangan Angka Besar
+      a = random.nextInt(50) + 50; 
+      b = random.nextInt(30) + 10; 
       
       question = "$a - $b";
       correctAnswer = a - b;
     }
 
-    // Generate Opsi Jawaban
     Set<int> optionsSet = {correctAnswer};
     while (optionsSet.length < 4) {
       int offset = random.nextInt(8) + 1;
@@ -109,21 +124,18 @@ class _Level8PageState extends State<Level8Page> {
     if (isGameFinished || _isStunned) return; 
 
     if (selectedAnswer == correctAnswer) {
-      // BENAR
       setState(() {
         bossHealth -= userDamage; 
       });
       
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          // Efek suara patah ranting kering
           content: Text("Krak! Ranting durinya patah!"), 
           backgroundColor: Colors.green,
           duration: Duration(milliseconds: 300),
         ),
       );
 
-      // Cek Menang
       if (bossHealth <= 0.05) {
         setState(() {
           bossHealth = 0;
@@ -139,7 +151,6 @@ class _Level8PageState extends State<Level8Page> {
       }
 
     } else {
-      // SALAH -> Kena Stun (Tertusuk Duri)
       setState(() {
         _isStunned = true; 
       });
@@ -198,7 +209,7 @@ class _Level8PageState extends State<Level8Page> {
     );
   }
 
-  // --- POPUP KEMENANGAN ---
+  // --- WIN DIALOG (UPDATE FIREBASE) ---
   void _showWinDialog() {
     showDialog(
       context: context,
@@ -268,11 +279,15 @@ class _Level8PageState extends State<Level8Page> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        // Tombol Peta
+                        // TOMBOL PETA
                         InkWell(
-                          onTap: () {
-                            Navigator.pop(context); // Tutup Dialog
-                            Navigator.pop(context); // Balik ke Peta
+                          onTap: () async {
+                            // Update Level ke 9
+                            await _unlockNextLevel();
+
+                            if (!context.mounted) return;
+                            Navigator.pop(context); 
+                            Navigator.pop(context); 
                           },
                           child: Column(
                             children: [
@@ -286,14 +301,19 @@ class _Level8PageState extends State<Level8Page> {
                             ],
                           ),
                         ),
-                        // Tombol Stage Berikutnya (Ke Level 9)
+
+                        // TOMBOL STAGE BERIKUTNYA (MENUJU LEVEL 9)
                         InkWell(
-                          onTap: () {
-                             Navigator.pop(context); 
-                             Navigator.pushReplacement(
-                               context, 
-                               MaterialPageRoute(builder: (context) => const Level9Page())
-                             );
+                          onTap: () async {
+                            // Update Level ke 9
+                            await _unlockNextLevel();
+
+                            if (!context.mounted) return;
+                            Navigator.pop(context); 
+                            Navigator.pushReplacement(
+                              context, 
+                              MaterialPageRoute(builder: (context) => const Level9Page())
+                            );
                           },
                           child: Column(
                             children: [
@@ -363,7 +383,6 @@ class _Level8PageState extends State<Level8Page> {
                         backgroundColor: Colors.white,
                       ),
                       const SizedBox(width: 8),
-                      // HP User Badge
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                         decoration: BoxDecoration(
@@ -393,24 +412,23 @@ class _Level8PageState extends State<Level8Page> {
                                 border: Border.all(color: Colors.black54),
                               ),
                             ),
-                            // Isi Darah (Coklat Kering untuk monster ranting)
+                            // Isi Darah (Coklat Kering)
                             FractionallySizedBox(
                               widthFactor: bossHealth > 0 ? bossHealth : 0, 
                               child: Container(
                                 height: 14,
                                 decoration: BoxDecoration(
-                                  color: Colors.brown, // Warna Coklat Kering
+                                  color: Colors.brown, 
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                               ),
                             ),
-                            // Icon Monster Kecil
+                            // Icon Monster
                             const Positioned(
                               right: 0,
                               child: CircleAvatar(
                                 radius: 16,
                                 backgroundColor: Colors.white,
-                                // Pastikan ini path ke gambar monster Tumbleweed
                                 backgroundImage: AssetImage('assets/region_2/monster_lvl_8.png'),
                               ),
                             ),
@@ -423,13 +441,13 @@ class _Level8PageState extends State<Level8Page> {
 
                 const Spacer(),
 
-                // VISUAL STUN (Efek Tertusuk)
+                // VISUAL STUN
                 if (_isStunned)
                   Container(
                     margin: const EdgeInsets.only(bottom: 20),
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                     decoration: BoxDecoration(
-                      color: Colors.brown.withOpacity(0.8), // Warna Duri
+                      color: Colors.brown.withOpacity(0.8),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(color: Colors.white, width: 2),
                     ),
@@ -444,20 +462,18 @@ class _Level8PageState extends State<Level8Page> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     crossAxisAlignment: CrossAxisAlignment.end, 
                     children: [
-                      // HERO (Kiri)
                       Flexible(
                         child: Image.asset(
                           'assets/images/mc.png',
                           height: 150, 
                           fit: BoxFit.contain, 
-                          // color: _isStunned ? Colors.red[300] : null, // Merah kesakitan
-                          // colorBlendMode: _isStunned ? BlendMode.modulate : null,
+                          color: _isStunned ? Colors.red[300] : null,
+                          colorBlendMode: _isStunned ? BlendMode.modulate : null,
                         ),
                       ),
                       
                       const SizedBox(width: 10), 
 
-                      // MUSUH (Kanan - Monster Level 8 Tumbleweed)
                       Flexible(
                         child: Image.asset(
                           'assets/region_2/monster_lvl_8.png', 
@@ -479,7 +495,7 @@ class _Level8PageState extends State<Level8Page> {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.brown[400]!, width: 2), // Border warna kering
+                    border: Border.all(color: Colors.brown[400]!, width: 2),
                     boxShadow: [
                       BoxShadow(color: Colors.brown.withOpacity(0.2), blurRadius: 10, offset: const Offset(0, 5))
                     ],
@@ -487,11 +503,7 @@ class _Level8PageState extends State<Level8Page> {
                   child: Text(
                     question, 
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
+                    style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.black87),
                   ),
                 ),
 
@@ -520,11 +532,7 @@ class _Level8PageState extends State<Level8Page> {
                             child: Center(
                               child: Text(
                                 "$option",
-                                style: const TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black87,
-                                ),
+                                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87),
                               ),
                             ),
                           ),

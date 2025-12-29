@@ -1,8 +1,10 @@
 import 'dart:async'; // Timer
 import 'dart:math';  // Random
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart'; // Wajib untuk fix navigasi
-// import 'level_14_page.dart'; // Uncomment jika sudah masuk Region 3
+import 'package:flutter/scheduler.dart'; 
+import 'package:firebase_auth/firebase_auth.dart'; // Wajib
+import 'package:cloud_firestore/cloud_firestore.dart'; // Wajib
+// import '../region_3/level_14_page.dart'; // Nanti di-uncomment kalau Region 3 sudah dibuat
 
 class Level13Page extends StatefulWidget {
   const Level13Page({super.key});
@@ -14,8 +16,8 @@ class Level13Page extends StatefulWidget {
 class _Level13PageState extends State<Level13Page> {
   // --- KONFIGURASI LEVEL 13 (BOSS REGION 2: ANCIENT SPHINX) ---
   // Difficulty: VERY HARD
-  final int enemyAttackSpeedMs = 1500; // Serangan lambat (1.5 detik) tapi...
-  final int enemyDamage = 15;          // DAMAGENYA SAKIT (Sekali kena -15 HP)
+  final int enemyAttackSpeedMs = 1500; // Serangan lambat tapi sakit
+  final int enemyDamage = 15;          // Sekali kena -15 HP
   final double userDamage = 0.08;      // Boss SANGAT TEBAL (Butuh ~13x benar)
   
   // HP Karakter DIBATASI (Maksimal 50) - HARD MODE
@@ -28,7 +30,7 @@ class _Level13PageState extends State<Level13Page> {
   bool _isStunned = false; 
   bool isGameFinished = false;
 
-  // --- DATA SOAL DINAMIS ---
+  // --- DATA SOAL ---
   String question = "";
   int correctAnswer = 0;
   List<int> options = [];
@@ -36,7 +38,7 @@ class _Level13PageState extends State<Level13Page> {
   @override
   void initState() {
     super.initState();
-    userHealth = maxUserHealth; // Set HP awal ke 50 (Tantangan Boss)
+    userHealth = maxUserHealth; // Set HP awal ke 50
     _generateQuestion(); 
     _startEnemyAttack(); 
   }
@@ -45,6 +47,22 @@ class _Level13PageState extends State<Level13Page> {
   void dispose() {
     _enemyAttackTimer?.cancel(); 
     super.dispose();
+  }
+
+  // --- FUNGSI UPDATE LEVEL KE FIREBASE (TARGET: LEVEL 14 / REGION 3) ---
+  Future<void> _unlockNextLevel() async {
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      DocumentReference userDoc = FirebaseFirestore.instance.collection('users').doc(user.uid);
+      
+      DocumentSnapshot snapshot = await userDoc.get();
+      int currentDbLevel = snapshot.get('level') ?? 1;
+
+      // Update ke Level 14 (Persiapan Region 3)
+      if (currentDbLevel < 14) {
+        await userDoc.update({'level': 14}); 
+      }
+    }
   }
 
   // --- LOGIKA MUSUH MENYERANG ---
@@ -65,38 +83,34 @@ class _Level13PageState extends State<Level13Page> {
   }
 
   // --- LOGIKA SOAL (Level 13: UJIAN AKHIR - SOAL SPHINX) ---
-  // Soal kompleks dengan 3-4 angka dan operasi campuran
   void _generateQuestion() {
     Random random = Random();
-    int type = random.nextInt(3); // 3 Variasi Soal Boss
+    int type = random.nextInt(3); 
     int a, b, c, d;
 
     if (type == 0) {
-      // Variasi 1: Perkalian, Tambah, Kurang (Prioritas Perkalian)
       // A x B + C - D
-      a = random.nextInt(8) + 3;   // 3-10
-      b = random.nextInt(8) + 3;   // 3-10
-      c = random.nextInt(20) + 10; // 10-29
-      d = random.nextInt(15) + 5;  // 5-19
+      a = random.nextInt(8) + 3;   
+      b = random.nextInt(8) + 3;   
+      c = random.nextInt(20) + 10; 
+      d = random.nextInt(15) + 5;  
       
       question = "$a × $b + $c - $d";
       correctAnswer = (a * b) + c - d;
 
     } else if (type == 1) {
-      // Variasi 2: Pembagian lalu Pengurangan (Hati-hati)
       // (A : B) - C
-      b = random.nextInt(6) + 3;        // Pembagi 3-8
-      int hasilBagi = random.nextInt(15) + 10; // Hasil bagi besar (10-24)
-      a = b * hasilBagi;                // A kelipatan B (30-192)
-      c = random.nextInt(hasilBagi - 5) + 1; // Pengurang < Hasil Bagi
+      b = random.nextInt(6) + 3;        
+      int hasilBagi = random.nextInt(15) + 10; 
+      a = b * hasilBagi;                
+      c = random.nextInt(hasilBagi - 5) + 1; 
       
       question = "$a : $b - $c";
       correctAnswer = (a ~/ b) - c;
 
     } else {
-      // Variasi 3: Pengurangan Beruntun & Penjumlahan (Butuh Fokus)
       // A - B + C - D
-      a = random.nextInt(50) + 50; // Angka awal besar (50-99)
+      a = random.nextInt(50) + 50; 
       b = random.nextInt(20) + 10; 
       c = random.nextInt(20) + 10;
       d = random.nextInt(20) + 5;
@@ -105,10 +119,9 @@ class _Level13PageState extends State<Level13Page> {
       correctAnswer = a - b + c - d;
     }
 
-    // Generate Opsi Jawaban (Opsinya SANGAT MENJEBAK - Berdekatan)
+    // Generate Opsi Jawaban (SANGAT MENJEBAK)
     Set<int> optionsSet = {correctAnswer};
     while (optionsSet.length < 4) {
-      // Offset sangat kecil (1-3) agar jawaban mirip-mirip dan membingungkan
       int offset = random.nextInt(3) + 1; 
       optionsSet.add(random.nextBool() ? correctAnswer + offset : correctAnswer - offset);
     }
@@ -122,7 +135,6 @@ class _Level13PageState extends State<Level13Page> {
     if (isGameFinished || _isStunned) return; 
 
     if (selectedAnswer == correctAnswer) {
-      // BENAR
       setState(() {
         bossHealth -= userDamage; 
       });
@@ -135,7 +147,6 @@ class _Level13PageState extends State<Level13Page> {
         ),
       );
 
-      // Cek Menang
       if (bossHealth <= 0.05) {
         setState(() {
           bossHealth = 0;
@@ -151,23 +162,21 @@ class _Level13PageState extends State<Level13Page> {
       }
 
     } else {
-      // SALAH -> Kena Stun + Hukuman HP (HARD MODE)
+      // SALAH -> Kena Stun + Hukuman HP
       setState(() {
         _isStunned = true; 
-        // Hukuman HP berkurang juga kalau salah jawab!
-        userHealth -= 5;
+        userHealth -= 5; // Hukuman tambahan
         if (userHealth < 0) userHealth = 0;
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text("SALAH! Kamu membatu! (-5 HP)"), 
-          backgroundColor: Colors.grey, // Warna Batu
+          backgroundColor: Colors.grey, 
           duration: Duration(milliseconds: 500),
         ),
       );
 
-      // Cek Mati karena salah jawab
       if (userHealth <= 0) {
          _enemyAttackTimer?.cancel();
          _showGameOverDialog();
@@ -205,7 +214,7 @@ class _Level13PageState extends State<Level13Page> {
             onPressed: () {
               Navigator.pop(context);
               setState(() {
-                userHealth = maxUserHealth; // Reset ke 50
+                userHealth = maxUserHealth; 
                 bossHealth = 1.0;
                 isGameFinished = false;
                 _isStunned = false;
@@ -220,7 +229,7 @@ class _Level13PageState extends State<Level13Page> {
     );
   }
 
-  // --- POPUP KEMENANGAN ---
+  // --- WIN DIALOG (UPDATE FIREBASE) ---
   void _showWinDialog() {
     showDialog(
       context: context,
@@ -267,7 +276,7 @@ class _Level13PageState extends State<Level13Page> {
                     ),
                     const SizedBox(height: 20),
 
-                    // Bintang & Skor (Bonus Besar Boss)
+                    // Bintang & Skor (Bonus Besar)
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       decoration: BoxDecoration(
@@ -290,11 +299,15 @@ class _Level13PageState extends State<Level13Page> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        // Tombol Peta
+                        // TOMBOL PETA
                         InkWell(
-                          onTap: () {
-                            Navigator.pop(context); // Tutup Dialog
-                            Navigator.pop(context); // Balik ke Peta
+                          onTap: () async {
+                            // Update Level ke 14
+                            await _unlockNextLevel();
+
+                            if (!context.mounted) return;
+                            Navigator.pop(context); 
+                            Navigator.pop(context); 
                           },
                           child: Column(
                             children: [
@@ -308,25 +321,43 @@ class _Level13PageState extends State<Level13Page> {
                             ],
                           ),
                         ),
-                        // Tombol NEXT REGION (Region 3)
+
+                        // TOMBOL REGION 3 (COMING SOON)
                         InkWell(
-                          onTap: () {
-                             Navigator.pop(context); 
-                             // Uncomment jika sudah ada Region 3
-                             // Navigator.pushReplacement(
-                             //   context, 
-                             //   MaterialPageRoute(builder: (context) => const Level14Page())
-                             // );
+                          onTap: () async {
+                            // 1. Update Database (Tetap update progress)
+                            await _unlockNextLevel();
+
+                            if (!context.mounted) return;
+                            
+                            // 2. Tampilkan Info bahwa Region 3 belum ada
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text("Region 3 Segera Hadir! Kembali ke Peta...")),
+                            );
+                            
+                            // 3. Kembali ke Peta
+                            Navigator.pop(context); 
+                            Navigator.pop(context);
+                            
+                            // Kalo Region 3 sudah ada, ganti kode di atas dengan ini:
+                            /*
+                            Navigator.pop(context); 
+                            Navigator.pushReplacement(
+                              context, 
+                              MaterialPageRoute(builder: (context) => const Level14Page())
+                            );
+                            */
                           },
                           child: Column(
                             children: [
                               Container(
                                 padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(color: Colors.blue[100], shape: BoxShape.circle),
-                                child: Icon(Icons.public, color: Colors.blue[800], size: 30), // Icon Globe Baru
+                                // Warna Ungu Misterius untuk Region 3
+                                decoration: BoxDecoration(color: Colors.purple[100], shape: BoxShape.circle),
+                                child: Icon(Icons.lock_clock, color: Colors.purple[800], size: 30), 
                               ),
                               const SizedBox(height: 4),
-                              const Text("Region Baru", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                              const Text("Region 3", style: TextStyle(fontSize: 12, color: Colors.grey)),
                             ],
                           ),
                         ),
@@ -361,7 +392,7 @@ class _Level13PageState extends State<Level13Page> {
     return Scaffold(
       body: Stack(
         children: [
-          // 1. BACKGROUND (Gurun - Region 2)
+          // BACKGROUND
           Container(
             decoration: const BoxDecoration(
               image: DecorationImage(
@@ -371,11 +402,11 @@ class _Level13PageState extends State<Level13Page> {
             ),
           ),
 
-          // 2. TAMPILAN UI
+          // UI
           SafeArea(
             child: Column(
               children: [
-                // --- HEADER: HP BAR ---
+                // HEADER HP
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   child: Row(
@@ -386,23 +417,23 @@ class _Level13PageState extends State<Level13Page> {
                         backgroundColor: Colors.white,
                       ),
                       const SizedBox(width: 8),
-                      // HP User Badge (MERAH KARENA HP MAKS CUMA 50)
+                      // HP User Badge (MERAH - HARD MODE)
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                         decoration: BoxDecoration(
-                          color: Colors.red[700], // Merah tanda bahaya
+                          color: Colors.red[700], 
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(color: Colors.white, width: 2),
                         ),
                         child: Text(
-                          "$userHealth / $maxUserHealth", // Tampilkan per 50
+                          "$userHealth / $maxUserHealth", 
                           style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
                         ),
                       ),
                       
                       const Spacer(),
 
-                      // HP Boss Bar (Kanan)
+                      // HP Boss Bar
                       Expanded(
                         flex: 4,
                         child: Stack(
@@ -416,24 +447,21 @@ class _Level13PageState extends State<Level13Page> {
                                 border: Border.all(color: Colors.black54),
                               ),
                             ),
-                            // Isi Darah (Emas Gelap - Sphinx)
                             FractionallySizedBox(
                               widthFactor: bossHealth > 0 ? bossHealth : 0, 
                               child: Container(
                                 height: 14,
                                 decoration: BoxDecoration(
-                                  color: Colors.amber[900], // Warna Emas Tua
+                                  color: Colors.amber[900], // Emas Tua
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                               ),
                             ),
-                            // Icon Boss Besar
                             const Positioned(
                               right: 0,
                               child: CircleAvatar(
-                                radius: 20, // Agak besar karena Boss
+                                radius: 20,
                                 backgroundColor: Colors.white,
-                                // Pastikan ini path ke gambar Sphinx
                                 backgroundImage: AssetImage('assets/region_2/monster_lvl_13.png'),
                               ),
                             ),
@@ -446,13 +474,13 @@ class _Level13PageState extends State<Level13Page> {
 
                 const Spacer(),
 
-                // VISUAL STUN (Efek Membatu)
+                // VISUAL STUN
                 if (_isStunned)
                   Container(
                     margin: const EdgeInsets.only(bottom: 20),
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                     decoration: BoxDecoration(
-                      color: Colors.grey.withOpacity(0.9), // Warna Batu
+                      color: Colors.grey.withOpacity(0.9),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(color: Colors.white, width: 2),
                     ),
@@ -460,31 +488,27 @@ class _Level13PageState extends State<Level13Page> {
                       style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                   ),
 
-                // --- ARENA KARAKTER ---
+                // ARENA
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     crossAxisAlignment: CrossAxisAlignment.end, 
                     children: [
-                      // HERO (Kiri)
                       Flexible(
                         child: Image.asset(
                           'assets/images/mc.png',
                           height: 150, 
                           fit: BoxFit.contain, 
-                          color: _isStunned ? Colors.grey : null, // Jadi abu-abu batu
+                          color: _isStunned ? Colors.grey : null, 
                           colorBlendMode: _isStunned ? BlendMode.saturation : null,
                         ),
                       ),
-                      
                       const SizedBox(width: 10), 
-
-                      // BOSS SPHINX (Kanan)
                       Flexible(
                         child: Image.asset(
-                          'assets/region_2/monster_lvl_13.png', 
-                          height: 220, // Boss SANGAT BESAR
+                          'assets/region_2/monster_lvl_13.png', // Sphinx
+                          height: 220, 
                           fit: BoxFit.contain,
                         ),
                       ),
@@ -494,7 +518,7 @@ class _Level13PageState extends State<Level13Page> {
 
                 const SizedBox(height: 20),
 
-                // --- KOTAK SOAL (Emas Mewah) ---
+                // SOAL (Emas Mewah)
                 Container(
                   margin: const EdgeInsets.symmetric(horizontal: 24),
                   padding: const EdgeInsets.symmetric(vertical: 16),
@@ -502,7 +526,7 @@ class _Level13PageState extends State<Level13Page> {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.amber[900]!, width: 3), // Border Emas Tebal
+                    border: Border.all(color: Colors.amber[900]!, width: 3), 
                     boxShadow: [
                       BoxShadow(color: Colors.amber.withOpacity(0.3), blurRadius: 15, offset: const Offset(0, 5))
                     ],
@@ -520,7 +544,7 @@ class _Level13PageState extends State<Level13Page> {
 
                 const SizedBox(height: 20),
 
-                // --- OPSI JAWABAN ---
+                // OPSI
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
                   child: Row(

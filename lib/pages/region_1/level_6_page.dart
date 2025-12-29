@@ -1,8 +1,11 @@
 import 'dart:async'; // Timer
 import 'dart:math';  // Random
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart'; // Wajib untuk fix navigasi
-import '../region_2/level_7_page.dart'; // Menuju Region 2
+import 'package:flutter/scheduler.dart'; 
+import 'package:firebase_auth/firebase_auth.dart'; // Wajib
+import 'package:cloud_firestore/cloud_firestore.dart'; // Wajib
+// Import Level 7 (Awal Region 2) - Sesuaikan path jika beda folder
+import '../region_2/level_7_page.dart'; 
 
 class Level6Page extends StatefulWidget {
   const Level6Page({super.key});
@@ -13,9 +16,9 @@ class Level6Page extends StatefulWidget {
 
 class _Level6PageState extends State<Level6Page> {
   // --- KONFIGURASI LEVEL 6 (BOSS REGION 1: GOLEM TANAH) ---
-  final int enemyAttackSpeedMs = 1500; // Serangan lambat (1.5 detik)
-  final int enemyDamage = 15;          // Damage SAKIT (15)
-  final double userDamage = 0.15;       // Boss tebal (Butuh 10x benar)
+  final int enemyAttackSpeedMs = 1500; 
+  final int enemyDamage = 15;          
+  final double userDamage = 0.15;      
 
   // --- STATE GAME ---
   int userHealth = 100;
@@ -24,7 +27,7 @@ class _Level6PageState extends State<Level6Page> {
   bool _isStunned = false; 
   bool isGameFinished = false;
 
-  // --- DATA SOAL DINAMIS ---
+  // --- DATA SOAL ---
   String question = "";
   int correctAnswer = 0;
   List<int> options = [];
@@ -40,6 +43,22 @@ class _Level6PageState extends State<Level6Page> {
   void dispose() {
     _enemyAttackTimer?.cancel(); 
     super.dispose();
+  }
+
+  // --- FUNGSI UPDATE LEVEL KE FIREBASE (TARGET: LEVEL 7 / REGION 2) ---
+  Future<void> _unlockNextLevel() async {
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      DocumentReference userDoc = FirebaseFirestore.instance.collection('users').doc(user.uid);
+      
+      DocumentSnapshot snapshot = await userDoc.get();
+      int currentDbLevel = snapshot.get('level') ?? 1;
+
+      // HANYA Update jika level di database masih di bawah 7
+      if (currentDbLevel < 7) {
+        await userDoc.update({'level': 7}); // BUKA LEVEL 7 (REGION BARU)
+      }
+    }
   }
 
   // --- LOGIKA MUSUH MENYERANG ---
@@ -62,12 +81,11 @@ class _Level6PageState extends State<Level6Page> {
   // --- LOGIKA SOAL (Level 6: 5 Variasi Soal) ---
   void _generateQuestion() {
     Random random = Random();
-    // Sekarang ada 5 tipe soal (0-4)
     int type = random.nextInt(5); 
     int a, b, c;
 
     if (type == 0) {
-      // Tipe 1: A + (B x C) -> Prioritas Kurung/Kali
+      // A + (B x C)
       a = random.nextInt(50) + 20; 
       b = random.nextInt(10) + 2; 
       c = random.nextInt(5) + 2;  
@@ -76,52 +94,48 @@ class _Level6PageState extends State<Level6Page> {
       correctAnswer = a + (b * c);
 
     } else if (type == 1) {
-      // Tipe 2: (A : B) + C -> Pembagian Kurung
-      b = random.nextInt(5) + 2;       // Pembagi
+      // (A : B) + C
+      b = random.nextInt(5) + 2;       
       int hasil = random.nextInt(10) + 5; 
-      a = b * hasil;                   // A kelipatan B
+      a = b * hasil;                   
       c = random.nextInt(20) + 10;
       
       question = "($a : $b) + $c";
       correctAnswer = (a ~/ b) + c;
 
     } else if (type == 2) {
-      // Tipe 3: A x B - C -> Perkalian Besar
+      // A x B - C
       a = random.nextInt(10) + 5;
       b = random.nextInt(6) + 3;
       int hasilKali = a * b;
-      c = random.nextInt(hasilKali - 10) + 5; // Pastikan positif
+      c = random.nextInt(hasilKali - 10) + 5; 
       
       question = "$a × $b - $c";
       correctAnswer = hasilKali - c;
 
     } else if (type == 3) {
-      // Tipe 4 (BARU): A - B : C -> Prioritas Pembagian Tanpa Kurung
-      // Menjebak: Anak harus membagi B:C dulu, baru A dikurang hasilnya.
-      c = random.nextInt(4) + 2;       // Pembagi (2-5)
-      int hasilBagi = random.nextInt(8) + 3; // Hasil bagi (3-10)
-      b = c * hasilBagi;               // B adalah kelipatan C
-      a = b + random.nextInt(30) + 10; // A harus lebih besar dari B agar positif
+      // A - B : C
+      c = random.nextInt(4) + 2;       
+      int hasilBagi = random.nextInt(8) + 3; 
+      b = c * hasilBagi;               
+      a = b + random.nextInt(30) + 10; 
       
       question = "$a - $b : $c";
       correctAnswer = a - (b ~/ c);
 
     } else {
-      // Tipe 5 (BARU): A x (B + C) -> Angka Hasil Besar
-      a = random.nextInt(6) + 3;   // 3-8
-      b = random.nextInt(10) + 5;  // 5-14
-      c = random.nextInt(10) + 5;  // 5-14
+      // A x (B + C)
+      a = random.nextInt(6) + 3;   
+      b = random.nextInt(10) + 5;  
+      c = random.nextInt(10) + 5;  
       
       question = "$a × ($b + $c)";
       correctAnswer = a * (b + c);
     }
 
-    // Generate Opsi Jawaban (Cerdas: Opsinya berdekatan)
     Set<int> optionsSet = {correctAnswer};
     while (optionsSet.length < 4) {
-      // Offset acak antara 1 sampai 10
       int offset = random.nextInt(10) + 1; 
-      // Kadang ditambah, kadang dikurang
       optionsSet.add(random.nextBool() ? correctAnswer + offset : correctAnswer - offset);
     }
     options = optionsSet.toList()..shuffle();
@@ -134,7 +148,6 @@ class _Level6PageState extends State<Level6Page> {
     if (isGameFinished || _isStunned) return; 
 
     if (selectedAnswer == correctAnswer) {
-      // BENAR
       setState(() {
         bossHealth -= userDamage; 
       });
@@ -147,7 +160,6 @@ class _Level6PageState extends State<Level6Page> {
         ),
       );
 
-      // Cek Menang
       if (bossHealth <= 0.05) {
         setState(() {
           bossHealth = 0;
@@ -163,7 +175,6 @@ class _Level6PageState extends State<Level6Page> {
       }
 
     } else {
-      // SALAH -> Kena Stun (Tertimbun Batu)
       setState(() {
         _isStunned = true; 
       });
@@ -222,7 +233,7 @@ class _Level6PageState extends State<Level6Page> {
     );
   }
 
-  // --- POPUP KEMENANGAN ---
+  // --- WIN DIALOG (UPDATE FIREBASE) ---
   void _showWinDialog() {
     showDialog(
       context: context,
@@ -292,11 +303,15 @@ class _Level6PageState extends State<Level6Page> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        // Tombol Peta
+                        // TOMBOL PETA
                         InkWell(
-                          onTap: () {
-                            Navigator.pop(context); // Tutup Dialog
-                            Navigator.pop(context); // Balik ke Peta
+                          onTap: () async {
+                            // Update Level ke 7 (Region 2)
+                            await _unlockNextLevel();
+
+                            if (!context.mounted) return;
+                            Navigator.pop(context); 
+                            Navigator.pop(context); 
                           },
                           child: Column(
                             children: [
@@ -310,19 +325,25 @@ class _Level6PageState extends State<Level6Page> {
                             ],
                           ),
                         ),
-                        // Tombol NEXT REGION (Ke Level 7)
+
+                        // TOMBOL NEXT REGION (LEVEL 7)
                         InkWell(
-                          onTap: () {
-                             Navigator.pop(context); 
-                             Navigator.pushReplacement(
-                               context, 
-                               MaterialPageRoute(builder: (context) => const Level7Page())
-                             );
+                          onTap: () async {
+                            // Update Level ke 7
+                            await _unlockNextLevel();
+
+                            if (!context.mounted) return;
+                            Navigator.pop(context); 
+                            Navigator.pushReplacement(
+                              context, 
+                              MaterialPageRoute(builder: (context) => const Level7Page())
+                            );
                           },
                           child: Column(
                             children: [
                               Container(
                                 padding: const EdgeInsets.all(10),
+                                // Warna Orange untuk menandakan Region Baru
                                 decoration: BoxDecoration(color: Colors.orange[100], shape: BoxShape.circle),
                                 child: Icon(Icons.public, color: Colors.orange[800], size: 30), 
                               ),
@@ -439,8 +460,9 @@ class _Level6PageState extends State<Level6Page> {
                     ],
                   ),
                 ),
+
                 const Spacer(),
-                
+
                 // VISUAL STUN
                 if (_isStunned)
                   Container(
@@ -455,7 +477,7 @@ class _Level6PageState extends State<Level6Page> {
                       style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                   ),
 
-                // ARENA
+                // ARENA KARAKTER
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Row(
@@ -484,7 +506,7 @@ class _Level6PageState extends State<Level6Page> {
                 ),
                 const SizedBox(height: 20),
                 
-                // SOAL (Kotak Coklat)
+                // SOAL
                 Container(
                   margin: const EdgeInsets.symmetric(horizontal: 24),
                   padding: const EdgeInsets.symmetric(vertical: 16),
