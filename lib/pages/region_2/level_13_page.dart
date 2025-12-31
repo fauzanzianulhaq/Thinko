@@ -16,9 +16,9 @@ class Level13Page extends StatefulWidget {
 class _Level13PageState extends State<Level13Page> {
   // --- KONFIGURASI LEVEL 13 (BOSS REGION 2: ANCIENT SPHINX) ---
   // Difficulty: VERY HARD
-  final int enemyAttackSpeedMs = 1500; // Serangan lambat tapi sakit
-  final int enemyDamage = 15;          // Sekali kena -15 HP
-  final double userDamage = 0.08;      // Boss SANGAT TEBAL (Butuh ~13x benar)
+  final int enemyAttackSpeedMs = 2400; // Serangan lambat tapi sakit
+  final int enemyDamage = 2;          // Sekali kena -10 HP
+  final double userDamage = 0.15;      // Boss SANGAT TEBAL (Butuh ~10-13x benar)
   
   // HP Karakter DIBATASI (Maksimal 50) - HARD MODE
   final int maxUserHealth = 50; 
@@ -27,7 +27,9 @@ class _Level13PageState extends State<Level13Page> {
   late int userHealth; 
   double bossHealth = 1.0; 
   Timer? _enemyAttackTimer;
+  
   bool _isStunned = false; 
+  bool _isHit = false; // [BARU] Variabel efek visual hit
   bool isGameFinished = false;
 
   // --- DATA SOAL ---
@@ -76,7 +78,7 @@ class _Level13PageState extends State<Level13Page> {
         if (userHealth <= 0) {
           userHealth = 0;
           timer.cancel();
-          _showGameOverDialog();
+          _showGameOverDialog(); // [BARU] Panggil dialog custom
         }
       }
     });
@@ -136,7 +138,17 @@ class _Level13PageState extends State<Level13Page> {
 
     if (selectedAnswer == correctAnswer) {
       setState(() {
-        bossHealth -= userDamage; 
+        bossHealth -= userDamage;
+        _isHit = true; // [BARU] Nyalakan efek merah
+      });
+
+      // [BARU] Matikan efek merah setelah 150ms
+      Future.delayed(const Duration(milliseconds: 150), () {
+        if (mounted) {
+          setState(() {
+            _isHit = false;
+          });
+        }
       });
       
       ScaffoldMessenger.of(context).showSnackBar(
@@ -194,38 +206,147 @@ class _Level13PageState extends State<Level13Page> {
     }
   }
 
-  // --- GAME OVER ---
+  // --- GAME OVER (CUSTOM STYLE) ---
+  // [BARU] Menggantikan AlertDialog biasa
   void _showGameOverDialog() {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Text("Game Over! 🗿", style: TextStyle(color: Colors.grey)),
-        content: const Text("Sphinx telah menjadikanmu patung pasir selamanya..."),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pop(context); 
-            },
-            child: const Text("Keluar"),
+      builder: (context) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.all(20),
+          child: Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.center,
+            children: [
+              // 1. KOTAK KONTEN PUTIH
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(top: 40), 
+                padding: const EdgeInsets.fromLTRB(20, 50, 20, 20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 10,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // JUDUL MERAH
+                    const Text(
+                      "GAME OVER",
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.red, 
+                        letterSpacing: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    const Divider(color: Colors.grey, thickness: 0.5),
+                    const SizedBox(height: 10),
+                    
+                    // PESAN KEKALAHAN
+                    const Text(
+                      "Yah... HP kamu habis!\nSphinx telah menjadikanmu patung pasir selamanya...",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 14, color: Colors.black54),
+                    ),
+                    const SizedBox(height: 30),
+
+                    // TOMBOL AKSI (Keluar & Retry)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        // TOMBOL KELUAR
+                        InkWell(
+                          onTap: () {
+                            Navigator.pop(context); // Tutup Dialog
+                            Navigator.pop(context); // Kembali ke Peta
+                          },
+                          child: Column(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.red[50], 
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.close_rounded, color: Colors.red, size: 32),
+                              ),
+                              const SizedBox(height: 8),
+                              const Text("Keluar", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                            ],
+                          ),
+                        ),
+
+                        // TOMBOL COBA LAGI (RETRY)
+                        InkWell(
+                          onTap: () {
+                            Navigator.pop(context);
+                            // Reset Game Logic
+                            setState(() {
+                              userHealth = maxUserHealth; // Reset ke 50
+                              bossHealth = 1.0;
+                              isGameFinished = false;
+                              _isStunned = false;
+                              _isHit = false; // Reset visual
+                              _generateQuestion();
+                              _startEnemyAttack();
+                            });
+                          },
+                          child: Column(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue[50], 
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.refresh_rounded, color: Colors.blue, size: 32),
+                              ),
+                              const SizedBox(height: 8),
+                              const Text("Coba Lagi", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              // 2. ICON KEPALA DI ATAS
+              Positioned(
+                top: 0,
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                  child: CircleAvatar(
+                    radius: 35,
+                    backgroundColor: Colors.red[100], 
+                    child: const Icon(
+                      Icons.sentiment_very_dissatisfied_rounded, 
+                      color: Colors.red, 
+                      size: 40
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              setState(() {
-                userHealth = maxUserHealth; 
-                bossHealth = 1.0;
-                isGameFinished = false;
-                _isStunned = false;
-                _generateQuestion();
-                _startEnemyAttack();
-              });
-            },
-            child: const Text("Coba Lagi"),
-          )
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -270,7 +391,7 @@ class _Level13PageState extends State<Level13Page> {
                     const SizedBox(height: 10),
                     
                     const Text(
-                      "Luar Biasa! Sphinx Kuno tunduk padamu!",
+                      "Luar Biasa! Sphinx Kuno tunduk padamu! Selamat datang di Region Baru!",
                       textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 14, color: Colors.black54),
                     ),
@@ -325,21 +446,17 @@ class _Level13PageState extends State<Level13Page> {
                         // TOMBOL REGION 3 (COMING SOON)
                         InkWell(
                           onTap: () async {
-                            // 1. Update Database (Tetap update progress)
                             await _unlockNextLevel();
 
                             if (!context.mounted) return;
                             
-                            // 2. Tampilkan Info bahwa Region 3 belum ada
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(content: Text("Region 3 Segera Hadir! Kembali ke Peta...")),
                             );
-                            
-                            // 3. Kembali ke Peta
                             Navigator.pop(context); 
                             Navigator.pop(context);
                             
-                            // Kalo Region 3 sudah ada, ganti kode di atas dengan ini:
+                            // Jika Region 3 sudah ada, uncomment ini:
                             /*
                             Navigator.pop(context); 
                             Navigator.pushReplacement(
@@ -392,7 +509,7 @@ class _Level13PageState extends State<Level13Page> {
     return Scaffold(
       body: Stack(
         children: [
-          // BACKGROUND
+          // 1. BACKGROUND (Gurun - Region 2)
           Container(
             decoration: const BoxDecoration(
               image: DecorationImage(
@@ -402,11 +519,11 @@ class _Level13PageState extends State<Level13Page> {
             ),
           ),
 
-          // UI
+          // 2. TAMPILAN UI
           SafeArea(
             child: Column(
               children: [
-                // HEADER HP
+                // --- HEADER: HP BAR ---
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   child: Row(
@@ -421,7 +538,7 @@ class _Level13PageState extends State<Level13Page> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                         decoration: BoxDecoration(
-                          color: Colors.red[700], 
+                          color: Colors.red[700], // Indikasi Hard Mode
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(color: Colors.white, width: 2),
                         ),
@@ -452,7 +569,7 @@ class _Level13PageState extends State<Level13Page> {
                               child: Container(
                                 height: 14,
                                 decoration: BoxDecoration(
-                                  color: Colors.amber[900], // Emas Tua
+                                  color: Colors.deepPurple, // Boss Akhir Region
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                               ),
@@ -510,6 +627,9 @@ class _Level13PageState extends State<Level13Page> {
                           'assets/region_2/monster_lvl_13.png', // Sphinx
                           height: 220, 
                           fit: BoxFit.contain,
+                          // [BARU] Logika warna merah saat kena hit
+                          color: _isHit ? Colors.red : null,
+                          colorBlendMode: _isHit ? BlendMode.modulate : null,
                         ),
                       ),
                     ],

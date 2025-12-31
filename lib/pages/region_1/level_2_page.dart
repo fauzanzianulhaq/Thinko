@@ -1,9 +1,9 @@
 import 'dart:async'; 
 import 'dart:math';  
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // Wajib
-import 'package:cloud_firestore/cloud_firestore.dart'; // Wajib
-import 'level_3_page.dart'; // Pastikan file ini ada
+import 'package:firebase_auth/firebase_auth.dart'; 
+import 'package:cloud_firestore/cloud_firestore.dart'; 
+import 'level_3_page.dart'; 
 
 class Level2Page extends StatefulWidget {
   const Level2Page({super.key});
@@ -14,15 +14,17 @@ class Level2Page extends StatefulWidget {
 
 class _Level2PageState extends State<Level2Page> {
   // --- KONFIGURASI LEVEL 2 ---
-  final int enemyAttackSpeedMs = 1500; 
-  final int enemyDamage = 4;           
+  final int enemyAttackSpeedMs = 1900; 
+  final int enemyDamage = 3;           
   final double userDamage = 0.2;       
 
   // --- STATE GAME ---
   int userHealth = 100;
   double bossHealth = 1.0; 
   Timer? _enemyAttackTimer;
+  
   bool _isStunned = false; 
+  bool _isHit = false; // [BARU] Variabel untuk efek hit merah
 
   // --- DATA SOAL ---
   String question = "";
@@ -42,20 +44,16 @@ class _Level2PageState extends State<Level2Page> {
     super.dispose();
   }
 
-  // --- FUNGSI UPDATE LEVEL KE FIREBASE (TARGET: LEVEL 3) ---
+  // --- FUNGSI UPDATE LEVEL KE FIREBASE ---
   Future<void> _unlockNextLevel() async {
     User? user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       DocumentReference userDoc = FirebaseFirestore.instance.collection('users').doc(user.uid);
-      
-      // Ambil data level sekarang
       DocumentSnapshot snapshot = await userDoc.get();
       int currentDbLevel = snapshot.get('level') ?? 1;
 
-      // HANYA Update jika level di database masih di bawah 3
-      // Supaya kalau user level 10 main ulang level 2, levelnya gak turun jadi 3
       if (currentDbLevel < 3) {
-        await userDoc.update({'level': 3}); // BUKA LEVEL 3
+        await userDoc.update({'level': 3}); 
       }
     }
   }
@@ -71,7 +69,7 @@ class _Level2PageState extends State<Level2Page> {
         if (userHealth <= 0) {
           userHealth = 0;
           timer.cancel();
-          _showGameOverDialog();
+          _showGameOverDialog(); // [BARU] Menggunakan dialog custom
         }
       }
     });
@@ -128,10 +126,21 @@ class _Level2PageState extends State<Level2Page> {
     if (_isStunned) return; 
 
     if (selectedAnswer == correctAnswer) {
+      // BENAR
       setState(() {
         bossHealth -= userDamage; 
+        _isHit = true; // [BARU] Nyalakan efek merah
       });
       
+      // [BARU] Matikan efek merah setelah 150ms
+      Future.delayed(const Duration(milliseconds: 150), () {
+        if (mounted) {
+          setState(() {
+            _isHit = false;
+          });
+        }
+      });
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text("Serangan Telak!"), 
@@ -143,12 +152,13 @@ class _Level2PageState extends State<Level2Page> {
       if (bossHealth <= 0.05) { 
         bossHealth = 0;
         _enemyAttackTimer?.cancel();
-        _showWinDialog(); // Panggil Dialog Menang
+        _showWinDialog(); 
       } else {
         _generateQuestion(); 
       }
 
     } else {
+      // SALAH
       setState(() {
         _isStunned = true; 
       });
@@ -172,41 +182,150 @@ class _Level2PageState extends State<Level2Page> {
     }
   }
 
-  // --- GAME OVER DIALOG ---
+  // --- DIALOG GAME OVER (CUSTOM STYLE DARI LEVEL 1) ---
+  // [BARU] Menggantikan AlertDialog biasa
   void _showGameOverDialog() {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Text("Game Over! 💀", style: TextStyle(color: Colors.red)),
-        content: const Text("Monster Level 2 terlalu kuat! Coba lagi!"),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pop(context); 
-            },
-            child: const Text("Keluar"),
+      builder: (context) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.all(20),
+          child: Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.center,
+            children: [
+              // 1. KOTAK KONTEN PUTIH
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(top: 40), 
+                padding: const EdgeInsets.fromLTRB(20, 50, 20, 20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 10,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // JUDUL MERAH
+                    const Text(
+                      "GAME OVER",
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.red, 
+                        letterSpacing: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    const Divider(color: Colors.grey, thickness: 0.5),
+                    const SizedBox(height: 10),
+                    
+                    // PESAN KEKALAHAN
+                    const Text(
+                      "Yah... HP kamu habis!\nMonster Level 2 terlalu kuat, ayo coba lagi!",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 14, color: Colors.black54),
+                    ),
+                    const SizedBox(height: 30),
+
+                    // TOMBOL AKSI (Keluar & Retry)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        // TOMBOL KELUAR
+                        InkWell(
+                          onTap: () {
+                            Navigator.pop(context); // Tutup Dialog
+                            Navigator.pop(context); // Kembali ke Peta
+                          },
+                          child: Column(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.red[50], 
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.close_rounded, color: Colors.red, size: 32),
+                              ),
+                              const SizedBox(height: 8),
+                              const Text("Keluar", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                            ],
+                          ),
+                        ),
+
+                        // TOMBOL COBA LAGI (RETRY)
+                        InkWell(
+                          onTap: () {
+                            Navigator.pop(context);
+                            // Reset Game Logic
+                            setState(() {
+                              userHealth = 100;
+                              bossHealth = 1.0;
+                              _isStunned = false;
+                              _isHit = false; // Reset efek visual
+                              _generateQuestion();
+                              _startEnemyAttack();
+                            });
+                          },
+                          child: Column(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue[50], 
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.refresh_rounded, color: Colors.blue, size: 32),
+                              ),
+                              const SizedBox(height: 8),
+                              const Text("Coba Lagi", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              // 2. ICON KEPALA DI ATAS
+              Positioned(
+                top: 0,
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                  child: CircleAvatar(
+                    radius: 35,
+                    backgroundColor: Colors.red[100], 
+                    child: const Icon(
+                      Icons.sentiment_very_dissatisfied_rounded, 
+                      color: Colors.red, 
+                      size: 40
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              setState(() {
-                userHealth = 100;
-                bossHealth = 1.0;
-                _isStunned = false;
-                _generateQuestion();
-                _startEnemyAttack();
-              });
-            },
-            child: const Text("Coba Lagi"),
-          )
-        ],
-      ),
+        );
+      },
     );
   }
 
-  // --- WIN DIALOG (LOGIKA UPDATE DISINI) ---
+  // --- WIN DIALOG ---
   void _showWinDialog() {
     showDialog(
       context: context,
@@ -262,9 +381,7 @@ class _Level2PageState extends State<Level2Page> {
                         // TOMBOL PETA
                         InkWell(
                           onTap: () async {
-                            // Update Level ke 3
                             await _unlockNextLevel();
-
                             if (!context.mounted) return;
                             Navigator.pop(context); 
                             Navigator.pop(context); 
@@ -281,16 +398,12 @@ class _Level2PageState extends State<Level2Page> {
                             ],
                           ),
                         ),
-
                         // TOMBOL NEXT (LEVEL 3)
                         InkWell(
                           onTap: () async {
-                            // Update Level ke 3
                             await _unlockNextLevel();
-
                             if (!context.mounted) return;
                             Navigator.pop(context); 
-                            // Pindah ke Level 3
                             Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const Level3Page()));
                           },
                           child: Column(
@@ -334,7 +447,7 @@ class _Level2PageState extends State<Level2Page> {
     return Scaffold(
       body: Stack(
         children: [
-          // 1. BACKGROUND (Bisa ganti gambar hutan yang lebih gelap/sore jika ada)
+          // 1. BACKGROUND
           Container(
             decoration: const BoxDecoration(
               image: DecorationImage(
@@ -392,7 +505,7 @@ class _Level2PageState extends State<Level2Page> {
                               child: Container(
                                 height: 14,
                                 decoration: BoxDecoration(
-                                  color: Colors.orangeAccent, // Warna bar boss level 2 beda (Orange)
+                                  color: Colors.orangeAccent, 
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                               ),
@@ -402,7 +515,6 @@ class _Level2PageState extends State<Level2Page> {
                               child: CircleAvatar(
                                 radius: 16,
                                 backgroundColor: Colors.white,
-                                // Ganti dengan gambar monster level 2
                                 backgroundImage: AssetImage('assets/images/monster_level_2.png'), 
                               ),
                             ),
@@ -451,6 +563,9 @@ class _Level2PageState extends State<Level2Page> {
                           'assets/images/monster_level_2.png', 
                           height: 190, 
                           fit: BoxFit.contain,
+                          // [BARU] Logika warna merah saat kena hit
+                          color: _isHit ? Colors.red : null,
+                          colorBlendMode: _isHit ? BlendMode.modulate : null,
                         ),
                       ),
                     ],

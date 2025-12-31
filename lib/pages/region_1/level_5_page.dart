@@ -15,15 +15,17 @@ class Level5Page extends StatefulWidget {
 
 class _Level5PageState extends State<Level5Page> {
   // --- KONFIGURASI LEVEL 5 (TEMA: HUTAN BERACUN) ---
-  final int enemyAttackSpeedMs = 1500; 
-  final int enemyDamage = 7;           
+  final int enemyAttackSpeedMs = 1700; 
+  final int enemyDamage = 3;           
   final double userDamage = 0.2;       
 
   // --- STATE GAME ---
   int userHealth = 100;
   double bossHealth = 1.0; 
   Timer? _enemyAttackTimer;
+  
   bool _isStunned = false; 
+  bool _isHit = false; // [BARU] Variabel efek visual hit
   bool isGameFinished = false;
 
   // --- DATA SOAL ---
@@ -71,7 +73,7 @@ class _Level5PageState extends State<Level5Page> {
         if (userHealth <= 0) {
           userHealth = 0;
           timer.cancel();
-          _showGameOverDialog();
+          _showGameOverDialog(); // [BARU] Panggil dialog custom
         }
       }
     });
@@ -127,7 +129,17 @@ class _Level5PageState extends State<Level5Page> {
 
     if (selectedAnswer == correctAnswer) {
       setState(() {
-        bossHealth -= userDamage; 
+        bossHealth -= userDamage;
+        _isHit = true; // [BARU] Nyalakan efek merah
+      });
+
+      // [BARU] Matikan efek merah setelah 150ms
+      Future.delayed(const Duration(milliseconds: 150), () {
+        if (mounted) {
+          setState(() {
+            _isHit = false;
+          });
+        }
       });
       
       ScaffoldMessenger.of(context).showSnackBar(
@@ -176,38 +188,147 @@ class _Level5PageState extends State<Level5Page> {
     }
   }
 
-  // --- GAME OVER ---
+  // --- GAME OVER (CUSTOM STYLE) ---
+  // [BARU] Menggantikan AlertDialog biasa
   void _showGameOverDialog() {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Text("Game Over! 🥀", style: TextStyle(color: Colors.red)),
-        content: const Text("Kamu dilahap oleh Tanaman Karnivora!"),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pop(context); 
-            },
-            child: const Text("Keluar"),
+      builder: (context) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.all(20),
+          child: Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.center,
+            children: [
+              // 1. KOTAK KONTEN PUTIH
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(top: 40), 
+                padding: const EdgeInsets.fromLTRB(20, 50, 20, 20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 10,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // JUDUL MERAH
+                    const Text(
+                      "GAME OVER",
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.red, 
+                        letterSpacing: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    const Divider(color: Colors.grey, thickness: 0.5),
+                    const SizedBox(height: 10),
+                    
+                    // PESAN KEKALAHAN
+                    const Text(
+                      "Yah... HP kamu habis!\nKamu dilahap oleh Tanaman Karnivora!",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 14, color: Colors.black54),
+                    ),
+                    const SizedBox(height: 30),
+
+                    // TOMBOL AKSI (Keluar & Retry)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        // TOMBOL KELUAR
+                        InkWell(
+                          onTap: () {
+                            Navigator.pop(context); // Tutup Dialog
+                            Navigator.pop(context); // Kembali ke Peta
+                          },
+                          child: Column(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.red[50], 
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.close_rounded, color: Colors.red, size: 32),
+                              ),
+                              const SizedBox(height: 8),
+                              const Text("Keluar", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                            ],
+                          ),
+                        ),
+
+                        // TOMBOL COBA LAGI (RETRY)
+                        InkWell(
+                          onTap: () {
+                            Navigator.pop(context);
+                            // Reset Game Logic
+                            setState(() {
+                              userHealth = 100;
+                              bossHealth = 1.0;
+                              isGameFinished = false;
+                              _isStunned = false;
+                              _isHit = false; // Reset visual
+                              _generateQuestion();
+                              _startEnemyAttack();
+                            });
+                          },
+                          child: Column(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue[50], 
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.refresh_rounded, color: Colors.blue, size: 32),
+                              ),
+                              const SizedBox(height: 8),
+                              const Text("Coba Lagi", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              // 2. ICON KEPALA DI ATAS
+              Positioned(
+                top: 0,
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                  child: CircleAvatar(
+                    radius: 35,
+                    backgroundColor: Colors.red[100], 
+                    child: const Icon(
+                      Icons.sentiment_very_dissatisfied_rounded, 
+                      color: Colors.red, 
+                      size: 40
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              setState(() {
-                userHealth = 100;
-                bossHealth = 1.0;
-                isGameFinished = false;
-                _isStunned = false;
-                _generateQuestion();
-                _startEnemyAttack();
-              });
-            },
-            child: const Text("Coba Lagi"),
-          )
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -427,7 +548,6 @@ class _Level5PageState extends State<Level5Page> {
                               child: CircleAvatar(
                                 radius: 16,
                                 backgroundColor: Colors.white,
-                                // Pastikan file gambar ada
                                 backgroundImage: AssetImage('assets/images/monster_level_5.png'), 
                               ),
                             ),
@@ -467,8 +587,8 @@ class _Level5PageState extends State<Level5Page> {
                           height: 150,
                           fit: BoxFit.contain,
                           // Efek Terjerat (Optional)
-                          // color: _isStunned ? Colors.green[300] : null,
-                          // colorBlendMode: _isStunned ? BlendMode.modulate : null,
+                          color: _isStunned ? Colors.green[300] : null,
+                          colorBlendMode: _isStunned ? BlendMode.modulate : null,
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -477,6 +597,9 @@ class _Level5PageState extends State<Level5Page> {
                           'assets/images/monster_level_5.png', 
                           height: 190,
                           fit: BoxFit.contain,
+                          // [BARU] Logika warna merah saat kena hit
+                          color: _isHit ? Colors.red : null,
+                          colorBlendMode: _isHit ? BlendMode.modulate : null,
                         ),
                       ),
                     ],

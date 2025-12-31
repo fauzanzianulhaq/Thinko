@@ -16,13 +16,15 @@ class _Level1PageState extends State<Level1Page> {
   // --- KONFIGURASI LEVEL 1 (EASY MODE) ---
   final int enemyAttackSpeedMs = 2000; 
   final int enemyDamage = 2;           
-  final double userDamage = 0.25;      
+  final double userDamage = 0.25;       
 
   // --- STATE GAME ---
   int userHealth = 100;
   double bossHealth = 1.0; 
   Timer? _enemyAttackTimer;
-  bool _isStunned = false; 
+  
+  bool _isStunned = false; // Efek user salah jawab
+  bool _isHit = false;     // [BARU] Efek musuh kena hit (jadi merah)
 
   // --- DATA SOAL DINAMIS ---
   String question = "";
@@ -42,18 +44,15 @@ class _Level1PageState extends State<Level1Page> {
     super.dispose();
   }
 
-  // --- FUNGSI UPDATE LEVEL KE FIREBASE (PENTING!) ---
+  // --- FUNGSI UPDATE LEVEL KE FIREBASE ---
   Future<void> _unlockNextLevel() async {
     User? user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       DocumentReference userDoc = FirebaseFirestore.instance.collection('users').doc(user.uid);
       
-      // Ambil data level sekarang dulu
       DocumentSnapshot snapshot = await userDoc.get();
       int currentDbLevel = snapshot.get('level') ?? 1;
 
-      // HANYA Update jika level di database masih 1
-      // (Supaya kalau user iseng main ulang level 1, levelnya gak turun)
       if (currentDbLevel < 2) {
         await userDoc.update({'level': 2}); 
       }
@@ -130,7 +129,17 @@ class _Level1PageState extends State<Level1Page> {
     if (selectedAnswer == correctAnswer) {
       // BENAR
       setState(() {
-        bossHealth -= userDamage; 
+        bossHealth -= userDamage;
+        _isHit = true; // [BARU] Nyalakan efek merah
+      });
+      
+      // [BARU] Matikan efek merah setelah 150ms (seperti kedipan)
+      Future.delayed(const Duration(milliseconds: 150), () {
+        if (mounted) {
+          setState(() {
+            _isHit = false;
+          });
+        }
       });
       
       ScaffoldMessenger.of(context).showSnackBar(
@@ -144,7 +153,7 @@ class _Level1PageState extends State<Level1Page> {
       if (bossHealth <= 0.05) { 
         bossHealth = 0;
         _enemyAttackTimer?.cancel(); 
-        _showWinDialog(); // Panggil Dialog Menang
+        _showWinDialog(); 
       } else {
         _generateQuestion(); 
       }
@@ -175,44 +184,150 @@ class _Level1PageState extends State<Level1Page> {
   }
 
   // --- DIALOG GAME OVER ---
+  // --- DIALOG GAME OVER (CUSTOM STYLE) ---
   void _showGameOverDialog() {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Text("Game Over! 💀", style: TextStyle(color: Colors.red)),
-        content: const Text("HP kamu habis! Jangan menyerah, coba lagi!"),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pop(context); 
-            },
-            child: const Text("Keluar"),
+      builder: (context) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.all(20),
+          child: Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.center,
+            children: [
+              // 1. KOTAK KONTEN PUTIH
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(top: 40), // Ruang untuk icon kepala
+                padding: const EdgeInsets.fromLTRB(20, 50, 20, 20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 10,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // JUDUL MERAH
+                    const Text(
+                      "GAME OVER",
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.red, // Warna Merah
+                        letterSpacing: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    const Divider(color: Colors.grey, thickness: 0.5),
+                    const SizedBox(height: 10),
+                    
+                    // PESAN KEKALAHAN
+                    const Text(
+                      "Yah... HP kamu habis!\nJangan menyerah, ayo coba lagi!",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 14, color: Colors.black54),
+                    ),
+                    const SizedBox(height: 30),
+
+                    // TOMBOL AKSI (Keluar & Retry)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        // TOMBOL KELUAR
+                        InkWell(
+                          onTap: () {
+                            Navigator.pop(context); // Tutup Dialog
+                            Navigator.pop(context); // Kembali ke Peta
+                          },
+                          child: Column(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.red[50], // Background merah muda
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.close_rounded, color: Colors.red, size: 32),
+                              ),
+                              const SizedBox(height: 8),
+                              const Text("Keluar", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                            ],
+                          ),
+                        ),
+
+                        // TOMBOL COBA LAGI (RETRY)
+                        InkWell(
+                          onTap: () {
+                            Navigator.pop(context);
+                            // Reset Game Logic
+                            setState(() {
+                              userHealth = 100;
+                              bossHealth = 1.0;
+                              _isStunned = false;
+                              _isHit = false; // Reset efek visual juga
+                              _generateQuestion();
+                              _startEnemyAttack();
+                            });
+                          },
+                          child: Column(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue[50], // Background biru muda
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.refresh_rounded, color: Colors.blue, size: 32),
+                              ),
+                              const SizedBox(height: 8),
+                              const Text("Coba Lagi", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              // 2. ICON KEPALA DI ATAS (Tengkorak / Sedih)
+              Positioned(
+                top: 0,
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                  child: CircleAvatar(
+                    radius: 35,
+                    backgroundColor: Colors.red[100], // Background Merah
+                    child: const Icon(
+                      Icons.sentiment_very_dissatisfied_rounded, // Icon Sedih
+                      color: Colors.red, 
+                      size: 40
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              setState(() {
-                userHealth = 100;
-                bossHealth = 1.0;
-                _isStunned = false;
-                _generateQuestion();
-                _startEnemyAttack();
-              });
-            },
-            child: const Text("Coba Lagi"),
-          )
-        ],
-      ),
+        );
+      },
     );
   }
 
-  // --- POPUP KEMENANGAN (BAGIAN PENTING YANG DIUBAH) ---
+  // --- POPUP KEMENANGAN ---
   void _showWinDialog() {
-    // Panggil fungsi update level saat dialog muncul (biar aman)
-    // Atau bisa dipanggil saat tombol diklik (seperti di bawah)
-    
     showDialog(
       context: context,
       barrierDismissible: false, 
@@ -224,6 +339,7 @@ class _Level1PageState extends State<Level1Page> {
             clipBehavior: Clip.none, 
             alignment: Alignment.center,
             children: [
+              // 1. KOTAK KONTEN PUTIH
               Container(
                 width: double.infinity,
                 margin: const EdgeInsets.only(top: 40), 
@@ -263,15 +379,10 @@ class _Level1PageState extends State<Level1Page> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        // TOMBOL PETA (BACK TO HOME)
                         InkWell(
-                          onTap: () async {
-                            // 1. Update Level ke Firebase
-                            await _unlockNextLevel(); 
-                            
-                            if (!context.mounted) return;
-                            Navigator.pop(context); // Tutup Dialog
-                            Navigator.pop(context); // Kembali ke Home
+                          onTap: () {
+                            Navigator.pop(context); 
+                            Navigator.pop(context); 
                           },
                           child: Column(
                             children: [
@@ -285,16 +396,11 @@ class _Level1PageState extends State<Level1Page> {
                             ],
                           ),
                         ),
-
-                        // TOMBOL STAGE BERIKUTNYA (NEXT LEVEL)
                         InkWell(
                           onTap: () async {
-                            // 1. Update Level ke Firebase
                             await _unlockNextLevel(); 
-
                             if (!context.mounted) return;
-                            Navigator.pop(context); // Tutup Dialog
-                            // Pindah ke Level 2
+                            Navigator.pop(context); 
                             Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const Level2Page()));
                           },
                           child: Column(
@@ -314,6 +420,7 @@ class _Level1PageState extends State<Level1Page> {
                   ],
                 ),
               ),
+              // 2. KEPALA ROBOT
               Positioned(
                 top: 0, 
                 child: Container(
@@ -338,7 +445,7 @@ class _Level1PageState extends State<Level1Page> {
     return Scaffold(
       body: Stack(
         children: [
-          // BACKGROUND
+          // 1. BACKGROUND
           Container(
             decoration: const BoxDecoration(
               image: DecorationImage(
@@ -348,7 +455,7 @@ class _Level1PageState extends State<Level1Page> {
             ),
           ),
 
-          // UI UTAMA
+          // 2. UI UTAMA
           SafeArea(
             child: Column(
               children: [
@@ -367,7 +474,7 @@ class _Level1PageState extends State<Level1Page> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                         decoration: BoxDecoration(
-                          color: userHealth < 30 ? Colors.red : Colors.green, 
+                          color: userHealth < 30 ? Colors.red : Colors.green, // Merah jika kritis
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(color: Colors.white, width: 2),
                         ),
@@ -418,7 +525,7 @@ class _Level1PageState extends State<Level1Page> {
 
                 const Spacer(),
 
-                // VISUAL STUN
+                // VISUAL STUN (Jika kena stun, tampilkan teks)
                 if (_isStunned)
                   Container(
                     margin: const EdgeInsets.only(bottom: 20),
@@ -431,28 +538,36 @@ class _Level1PageState extends State<Level1Page> {
                       style: TextStyle(color: Colors.yellow, fontWeight: FontWeight.bold)),
                   ),
 
-                // ARENA KARAKTER
+                // ARENA KARAKTER & MUSUH
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     crossAxisAlignment: CrossAxisAlignment.end, 
                     children: [
+                      // USER
                       Flexible(
                         child: Image.asset(
                           'assets/images/mc.png',
                           height: 150, 
                           fit: BoxFit.contain, 
-                          color: _isStunned ? Colors.grey : null, 
-                          colorBlendMode: _isStunned ? BlendMode.saturation : null,
                         ),
                       ),
                       const SizedBox(width: 10), 
+                      
+                      // MUSUH (Efek Flash Red)
                       Flexible(
+                        // Tidak perlu Stack lagi, langsung Image saja
                         child: Image.asset(
                           'assets/images/lvl1.png',
                           height: 180, 
                           fit: BoxFit.contain,
+                          
+                          // [BARU] Logika Warna Merah
+                          // Jika kena hit (_isHit true), warnanya jadi Merah
+                          color: _isHit ? Colors.red : null,
+                          // Modulate akan mencampur warna merah ke gambar (efek tint)
+                          colorBlendMode: _isHit ? BlendMode.modulate : null,
                         ),
                       ),
                     ],
@@ -474,7 +589,7 @@ class _Level1PageState extends State<Level1Page> {
                     ],
                   ),
                   child: Text(
-                    question, 
+                    question, // Soal dinamis
                     textAlign: TextAlign.center,
                     style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.black87),
                   ),
@@ -496,7 +611,7 @@ class _Level1PageState extends State<Level1Page> {
                             width: 65,
                             height: 65,
                             decoration: BoxDecoration(
-                              color: _isStunned ? Colors.grey[400] : const Color(0xFFF0F0F0), 
+                              color: _isStunned ? Colors.grey[400] : const Color(0xFFF0F0F0),
                               borderRadius: BorderRadius.circular(12),
                               boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: const Offset(0, 4))],
                             ),

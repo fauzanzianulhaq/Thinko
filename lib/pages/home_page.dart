@@ -30,22 +30,22 @@ class _HomePageState extends State<HomePage> {
   // Kalau masih kurang pas, JANGAN MENEBAK.
   // Caranya: Klik layar di HP -> Lihat "Debug Console" di bawah -> Copy angkanya ke sini.
   final List<Offset> levelLocations = [
-    const Offset(260, 160), // Level 1 (Kanan Atas)
-    const Offset(160, 240), // Level 2 (Tengah)
-    const Offset(70, 360),  // Level 3 (Kiri)
-    const Offset(240, 520), // Level 4 (Kanan)
-    const Offset(120, 680), // Level 5 (Kiri Tengah)
-    const Offset(180, 850), // Level 6 (Bawah Tengah)
+    const Offset(255, 93), // Level 1 (Kanan Atas)
+    const Offset(127, 128), // Level 2 (Tengah)
+    const Offset(76, 257),  // Level 3 (Kiri)
+    const Offset(201, 325), // Level 4 (Kanan)
+    const Offset(180, 460), // Level 5 (Kiri Tengah)
+    const Offset(87, 544), // Level 6 (Bawah Tengah)
     
     // -- REGION 2 (Gurun) --
     // Sesuaikan nanti pas gambar gurun muncul di bawah
-    const Offset(280, 1000), 
-    const Offset(100, 1150),
-    const Offset(200, 1300),
-    const Offset(100, 1450),
-    const Offset(250, 1600),
-    const Offset(150, 1750),
-    const Offset(180, 1900),
+    const Offset(170, 700), // Level 7
+    const Offset(120, 822), // Level 8
+    const Offset(90, 950), // Level 9
+    const Offset(220, 1027), // Level 10
+    const Offset(245, 1170), // Level 11
+    const Offset(155, 1278), // Level 12
+    const Offset(121, 1400), // Level 13
   ];
 
   @override
@@ -84,14 +84,14 @@ class _HomePageState extends State<HomePage> {
               // --- LAPISAN 1: PETA SCROLLABLE (KODE SAMA SEPERTI SEBELUMNYA) ---
               SingleChildScrollView(
                 child: SizedBox(
-                  height: 2000, 
+                  height: 1500, 
                   child: Stack(
                     children: [
                       // ... (Kode Gambar Background Peta TETAP SAMA) ...
                       GestureDetector(
                         // ... kode on tap ...
                         child: Image.asset(
-                          'assets/images/map_background.png',
+                          'assets/images/map_background3.png',
                           width: double.infinity,
                           fit: BoxFit.fitWidth, 
                           alignment: Alignment.topCenter,
@@ -173,27 +173,24 @@ class _HomePageState extends State<HomePage> {
   }
 
   // --- WIDGET TOMBOL LEVEL (UKURAN DIPERBAIKI) ---
+  // --- WIDGET TOMBOL LEVEL (PERBAIKAN POSISI) ---
   Widget _buildLevelButton({required int level, required bool isCurrentHighLevel}) {
-    // Ukuran tombol saya set 50 biar pas dengan bulatan di gambar peta Akang
-    double size = 50; 
+    double size = 50;
 
     return GestureDetector(
       onTap: () => _navigateToLevel(level),
-      child: Column(
+      // GANTI COLUMN DENGAN STACK
+      child: Stack(
+        clipBehavior: Clip.none, // PENTING: Agar panah bisa muncul di luar batas kotak
+        alignment: Alignment.center,
         children: [
-          // Panah Penunjuk (Hanya di level paling tinggi)
-          if (isCurrentHighLevel)
-            const Icon(Icons.keyboard_arrow_down, color: Colors.white, size: 30, shadows: [
-              Shadow(blurRadius: 5, color: Colors.black, offset: Offset(0, 2))
-            ]),
-          
+          // 1. LINGKARAN TOMBOL (Ini jadi patokan posisi tetap)
           Container(
-            width: size, 
+            width: size,
             height: size,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              // Level Aktif: Hijau, Level Lewat: Kuning Emas
-              color: isCurrentHighLevel ? const Color(0xFF1CC600) : const Color(0xFFFFC107), 
+              color: isCurrentHighLevel ? const Color(0xFF1CC600) : const Color(0xFFFFC107),
               border: Border.all(color: Colors.white, width: 3),
               boxShadow: [
                 BoxShadow(
@@ -204,11 +201,26 @@ class _HomePageState extends State<HomePage> {
               ],
             ),
             child: Center(
-              child: isCurrentHighLevel 
-                ? Text("$level", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 22))
-                : const Icon(Icons.check, color: Colors.white, size: 28), // Centang kalau sudah lewat
+              child: isCurrentHighLevel
+                  ? Text("$level", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 22))
+                  : const Icon(Icons.check, color: Colors.white, size: 28),
             ),
           ),
+
+          // 2. PANAH (Melayang di atas lingkaran)
+          // Posisi Absolute relative terhadap lingkaran
+          if (isCurrentHighLevel)
+            const Positioned(
+              top: -35, // Geser ke atas (Nilai minus artinya keluar ke atas)
+              child: Icon(
+                Icons.keyboard_arrow_down,
+                color: Colors.white,
+                size: 35, // Ukuran panah
+                shadows: [
+                  Shadow(blurRadius: 5, color: Colors.black, offset: Offset(0, 2))
+                ],
+              ),
+            ),
         ],
       ),
     );
