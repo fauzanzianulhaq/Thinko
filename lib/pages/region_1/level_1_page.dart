@@ -380,7 +380,10 @@ class _Level1PageState extends State<Level1Page> {
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
                         InkWell(
-                          onTap: () {
+                          onTap: () async {
+                            await _unlockNextLevel();
+
+                            if (!context.mounted) return;
                             Navigator.pop(context); 
                             Navigator.pop(context); 
                           },
